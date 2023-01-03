@@ -12,13 +12,6 @@ const colors = {
   yellow: "yellow",
 };
 
-const connectionAttachPositions = {
-  top: "top",
-  bottom: "bottom",
-  left: "left",
-  right: "right",
-};
-
 // Proxy model for the view. It provides a simplified interface for the view to interact with the model.
 // It also provides a way to listen to changes in the model. It also contains additional data required 
 // to visualize the model like nodes positions, connections positions, sizes, shapes and colors.
@@ -28,10 +21,6 @@ class ViewModel extends Model {
   sizes = [];
   shapes = [];
   colors = [];
-  
-  // connections properties
-  connectionStartAttachPositions = [];
-  connectionEndAttachPositions = [];
 
   // drag and drop
   draggedNode = null;
@@ -62,14 +51,6 @@ class ViewModel extends Model {
     return this.colors[index];
   }
 
-  getConnectionStartAttachPosition(index) {
-    return this.connectionStartAttachPositions[index];
-  }
-
-  getConnectionEndAttachPosition(index) {
-    return this.connectionEndAttachPositions[index];
-  }
-
   // setters
 
   addNode(parent) {
@@ -83,20 +64,14 @@ class ViewModel extends Model {
 
   addConnection(input, output) {
     super.addConnection(input, output);
-    this.connectionStartAttachPositions.push(connectionAttachPositions.top);
-    this.connectionEndAttachPositions.push(connectionAttachPositions.top);
   }
 
   removeConnection(input, output) {
     super.removeConnection(input, output);
-    this.connectionStartAttachPositions = this.connectionStartAttachPositions.filter(connection => connection.input !== input && connection.output !== output);
-    this.connectionEndAttachPositions = this.connectionEndAttachPositions.filter(connection => connection.input !== input && connection.output !== output);
   }
 
   removeConnections(index) {
     super.removeConnections(index);
-    this.connectionStartAttachPositions = this.connectionStartAttachPositions.filter(connection => connection.input !== index && connection.output !== index);
-    this.connectionEndAttachPositions = this.connectionEndAttachPositions.filter(connection => connection.input !== index && connection.output !== index);
   }
 
   removeNode(index) {
@@ -122,16 +97,6 @@ class ViewModel extends Model {
 
   setNodeColor(index, color) {
     this.colors[index] = color;
-  }
-
-  setConnectionStartAttachPosition(start, end, position) {
-    const index = this.getConnectionIndex(start, end);
-    this.connectionStartAttachPositions[index] = position;
-  }
-
-  setConnectionEndAttachPosition(start, end, position) {
-    const index = this.getConnectionIndex(start, end);
-    this.connectionEndAttachPositions[index] = position;
   }
 
   // drag and drop

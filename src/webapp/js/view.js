@@ -136,29 +136,6 @@ class View {
         this.ctx.fill();
         break;
     }
-
-    // draw connection points
-    if (this.viewModel.getSelectedNode() === index) {
-      this.drawConnectionPoints(position);
-    }
-  }
-
-  drawConnectionPoints(position) {
-    this.drawConnectionPoint(position, connectionAttachPositions.top);
-    this.drawConnectionPoint(position, connectionAttachPositions.right);
-    this.drawConnectionPoint(position, connectionAttachPositions.bottom);
-    this.drawConnectionPoint(position, connectionAttachPositions.left);
-  }
-
-  drawConnectionPoint(position, attachPosition) {
-    // get attach point
-    const attachPoint = this.getAttachPointPosition(position, attachPosition);
-
-    // draw attach point
-    this.ctx.beginPath();
-    this.ctx.fillStyle = colors.blue;
-    this.ctx.arc(attachPoint.x, attachPoint.y, 5, 0, 2 * Math.PI);
-    this.ctx.fill();
   }
 
   drawConnection(connection) {
@@ -173,34 +150,6 @@ class View {
     this.ctx.moveTo(startAttachPoint.x, startAttachPoint.y);
     this.ctx.lineTo(endAttachPoint.x, endAttachPoint.y);
     this.ctx.stroke();
-  }
-
-  getAttachPointPosition(position, attachPosition) {
-    const size = this.viewModel.getSize(this.viewModel.getSelectedNode());
-    const width = size.width;
-    const height = size.height;
-    switch (attachPosition) {
-      case connectionAttachPositions.top:
-        return {
-          x: position.x,
-          y: position.y - height / 2 - 10
-        };
-      case connectionAttachPositions.right:
-        return {
-          x: position.x + width / 2 + 10,
-          y: position.y
-        };
-      case connectionAttachPositions.bottom:
-        return {
-          x: position.x,
-          y: position.y + height / 2 + 10
-        };
-      case connectionAttachPositions.left:
-        return {
-          x: position.x - width / 2 - 10,
-          y: position.y
-        };
-    }
   }
 
   getNodeAtPosition(position) {
