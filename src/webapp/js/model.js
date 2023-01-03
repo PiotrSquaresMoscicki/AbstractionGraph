@@ -23,6 +23,11 @@ class Connection {
 // connections. Each connection as an input and an output node. Nodes are identified by instances 
 // of the Index type. Nodes can have child nodes. The model is a tree of nodes that can connect with
 // each other. Children can't be connected with its parents.
+// Nodes that are direct children of the same parent create an abstraction layer. The user can design
+// the system or the behavior from top to bottom starting with most general abstraction and by creating
+// nodes which can be data or system nodes. Each system node can contain children that again when 
+// connected with other systems and data  (that is children of the same parent) create a new abstraction
+// layer.
 class Model {
   nodes = [];
   connections = [];

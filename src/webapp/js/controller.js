@@ -23,12 +23,12 @@ class Controller {
     }
     
     this.viewModel.setDraggedNode(node);
-    this.viewModel.setSelectedNode(node);
-    const nodePosition = this.viewModel.getPosition(node);
+    const nodePosition = this.viewModel.getNodePosition(node);
     this.viewModel.setInitialNodePosition(nodePosition);
     this.viewModel.setInitialMousePosition(position);
 
     this.updateCursor(position);
+    this.updateHoveredNode(position);
     this.view.draw();
   }
 
@@ -51,6 +51,8 @@ class Controller {
     }
     
     this.updateCursor(position);
+    this.updateHoveredNode(position);
+    this.view.draw();
   }
 
   onMouseUp = event => {
@@ -83,5 +85,10 @@ class Controller {
     } else {
       this.view.canvas.style.cursor = "default";
     }
+  }
+
+  updateHoveredNode(position) {
+    const node = this.view.getNodeAtPosition(position);
+    this.viewModel.setHoveredNode(node);
   }
 }

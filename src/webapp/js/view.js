@@ -54,10 +54,10 @@ class View {
   }
 
   drawNode(index) {
-    const position = this.viewModel.getPosition(index);
-    const size = this.viewModel.getSize(index);
-    const shape = this.viewModel.getShape(index);
-    const color = this.viewModel.getColor(index);
+    const position = this.viewModel.getNodePosition(index);
+    const size = this.viewModel.getNodeSize(index);
+    const shape = this.viewModel.getNodeShape(index);
+    const color = this.viewModel.getNodeColor(index);
     const x = position.x;
     const y = position.y;
     const width = size.width;
@@ -65,8 +65,8 @@ class View {
 
     switch (shape) {
       case shapes.circle:
-        // draw selection
-        if (this.viewModel.getSelectedNode() === index) {
+        // draw hover
+        if (this.viewModel.getHoveredNode() === index) {
           this.ctx.beginPath();
           this.ctx.fillStyle = colors.blue;
           this.ctx.arc(x, y, width / 2 + 3, 0, 2 * Math.PI);
@@ -79,8 +79,8 @@ class View {
         this.ctx.fill();
         break;
       case shapes.rectangle:
-        // draw selection
-        if (this.viewModel.getSelectedNode() === index) {
+        // draw hover
+        if (this.viewModel.getHoveredNode() === index) {
           this.ctx.beginPath();
           this.ctx.fillStyle = colors.blue;
           this.ctx.rect(x - 5, y - 5, width + 10, height + 10);
@@ -92,8 +92,8 @@ class View {
         this.ctx.fill();
         break;
       case shapes.triangle:
-        // draw selection
-        if (this.viewModel.getSelectedNode() === index) {
+        // draw hover
+        if (this.viewModel.getHoveredNode() === index) {
           this.ctx.beginPath();
           this.ctx.fillStyle = colors.blue;
           this.ctx.moveTo(x - 5, y - 5);
@@ -113,8 +113,8 @@ class View {
         this.ctx.fill();
         break;
       case shapes.diamond:
-        // draw selection
-        if (this.viewModel.getSelectedNode() === index) {
+        // draw hover
+        if (this.viewModel.getHoveredNode() === index) {
           this.ctx.beginPath();
           this.ctx.fillStyle = colors.blue;
           this.ctx.moveTo(x - 5, y);
@@ -139,8 +139,8 @@ class View {
   }
 
   drawConnection(connection) {
-    const start = this.viewModel.getPosition(connection.start);
-    const end = this.viewModel.getPosition(connection.end);
+    const start = this.viewModel.getNodePosition(connection.start);
+    const end = this.viewModel.getNodePosition(connection.end);
     const startAttachPosition = this.viewModel.getConnectionStartAttachPosition(connection.start, connection.end);
     const endAttachPosition = this.viewModel.getConnectionEndAttachPosition(connection.start, connection.end);
     const startAttachPoint = this.getAttachPoint(start, startAttachPosition);
@@ -155,9 +155,9 @@ class View {
   getNodeAtPosition(position) {
     const nodes = this.viewModel.nodes;
     for (let i = nodes.length - 1; i >= 0; i--) {
-      const nodePosition = this.viewModel.getPosition(i);
-      const nodeSize = this.viewModel.getSize(i);
-      const nodeShape = this.viewModel.getShape(i);
+      const nodePosition = this.viewModel.getNodePosition(i);
+      const nodeSize = this.viewModel.getNodeSize(i);
+      const nodeShape = this.viewModel.getNodeShape(i);
       const x = nodePosition.x;
       const y = nodePosition.y;
       const width = nodeSize.width;
