@@ -22,12 +22,14 @@ class View {
 
     this.drawGrid();
 
-    this.viewModel.connections.forEach(connection => {
-      this.drawConnection(connection);
-    });
+    const root = this.viewModel.getRoot();
+    this.drawChildNodesAndConnections(root);
+  }
 
-    this.viewModel.nodes.forEach((node, index) => {
-      this.drawNode(index);
+  drawChildNodesAndConnections(parent) {
+    const children = this.viewModel.getChildren(parent);
+    children.forEach(child => {
+      this.drawNode(child);
     });
   }
 

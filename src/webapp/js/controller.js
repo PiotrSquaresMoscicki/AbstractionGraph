@@ -17,15 +17,25 @@ class Controller {
     var node = this.view.getNodeAtPosition(position);
 
     if (node === null) {
-      node = this.viewModel.addNode(-1);
+      node = this.viewModel.addNode(this.viewModel.getRoot());
       this.viewModel.setNodePosition(node, position);
       this.viewModel.setNodeSize(node, { width: 50, height: 50 });
     }
     
-    this.viewModel.setDraggedNode(node);
-    const nodePosition = this.viewModel.getNodePosition(node);
-    this.viewModel.setInitialNodePosition(nodePosition);
-    this.viewModel.setInitialMousePosition(position);
+    // remove node if pressed with alt key
+    if (event.altKey) {
+      this.viewModel.removeNode(node);
+      node = null;
+    }
+
+    // start dragging node if node is not null
+
+    if (node !== null) {
+      this.viewModel.setDraggedNode(node);
+      const nodePosition = this.viewModel.getNodePosition(node);
+      this.viewModel.setInitialNodePosition(nodePosition);
+      this.viewModel.setInitialMousePosition(position);
+    }
 
     this.updateCursor(position);
     this.updateHoveredNode(position);

@@ -40,6 +40,15 @@ class ViewModel extends Model {
   // grid
   gridSize = 20;
 
+  constructor() {
+    super();
+    // add position, size, shape and color for the root node
+    this.positions = [{ x: 0, y: 0 }];
+    this.sizes = [{ width: 0, height: 0 }];
+    this.shapes = [shapes.circle];
+    this.colors = [colors.red];
+  }
+
   // getters
 
   getNodePosition(index) {

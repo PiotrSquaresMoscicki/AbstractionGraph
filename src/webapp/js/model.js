@@ -27,12 +27,21 @@ class Connection {
 // the system or the behavior from top to bottom starting with most general abstraction and by creating
 // nodes which can be data or system nodes. Each system node can contain children that again when 
 // connected with other systems and data  (that is children of the same parent) create a new abstraction
-// layer.
+// layer. Index 0 is the root and can't be removed.
 class Model {
   nodes = [];
   connections = [];
+
+  constructor() {
+    this.nodes = [new Node(null)];
+    this.connections = [];
+  }
   
   // getters
+
+  getRoot() {
+    return 0;
+  }
 
   getParent(index) {
     return this.nodes[index].parent;
@@ -56,26 +65,72 @@ class Model {
 
   // setters
 
+  // Adds child to the parent. If the parent is null the child is added to the root.
+  // If there is any nulled node its index is reused. Returns the index of the added node.
   addNode(parent) {
-    const index = this.nodes.length;
-    this.nodes.push(new Node(parent));
-    return index;
+    if (parent === null) {
+      parent = 0;
+    }
+    const index = this.nodes.findIndex(node => node === null);
+    if (index === -1) {
+      this.nodes.push(new Node(parent));
+      this.nodes[parent].children.push(this.nodes.length - 1);
+      return this.nodes.length - 1;
+    } else {
+      this.nodes[index] = new Node(parent);
+      this.nodes[parent].children.push(index);
+      return index;
+    }
   }
 
+  // Adds connection between the nodes at the given indices.
+  // If there is any nulled connection its index is reused.
   addConnection(input, output) {
-    this.connections.push(new Connection(input, output));
+    const index = this.connections.findIndex(connection => connection === null);
+    if (index === -1) {
+      this.connections.push(new Connection(input, output));
+    } else {
+      this.connections[index] = new Connection(input, output);
+    }
   }
 
-  removeConnection(input, output) {
-    this.connections = this.connections.filter(connection => connection.input !== input && connection.output !== output);
+  // Nullifies the connection between the nodes at the given indices.
+  removeConnection(start, end) {
+    const index = this.getConnectionIndex(start, end);
+    if (index !== -1) {
+      this.connections[index] = null;
+    }
   }
 
+  // Nullifies all connections connected with the node at the given index.
   removeConnections(index) {
-    this.connections = this.connections.filter(connection => connection.input !== index && connection.output !== index);
+    this.connections = this.connections.map(connection => {
+      if (connection.input === index || connection.output === index) {
+        return null;
+      } else {
+        return connection;
+      }
+    });
   }
 
+  // The node in the array is only nulled and not removed from the array because the indices of the
+  // nodes are used to identify the nodes. The node is nulled and if this index is ever requested 
+  // the model will return null. All connections that are connected to this node are also nulled 
+  // for the same reason. Index 0 is the root and can't be removed.
   removeNode(index) {
-    this.nodes = this.nodes.filter(node => node.parent !== index && !node.children.includes(index));
+    if (index === 0) {
+      return;
+    }
+    // remove from parent
+    const parent = this.getParent(index);
+    if (parent !== null) {
+      this.nodes[parent].children = this.nodes[parent].children.filter(child => child !== index);
+    }
+    // remove children
+    this.getChildren(index).forEach(child => this.removeNode(child));
+    // remove connections
     this.removeConnections(index);
+    // remove node
+    this.nodes[index] = null;
   }
 }
