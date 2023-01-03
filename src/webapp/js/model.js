@@ -2,13 +2,13 @@
 // parent - index of the parent node in the model array of nodes
 // children - array of indices of the children nodes in the model array of nodes
 class Node {
+  parent = null;
+  children = [];
+
   constructor(parent) {
     this.parent = parent;
     this.children = [];
   }
-
-  parent = null;
-  children = [];
 }
 
 // Connection is the internal class for storing data inside the model. It has two fields:
