@@ -76,82 +76,25 @@ class View {
     const size = this.viewModel.getNodeSize(index);
     const shape = this.viewModel.getNodeShape(index);
     const color = this.viewModel.getNodeColor(index);
-    const x = position.x;
-    const y = position.y;
-    const width = size.width;
-    const height = size.height;
 
     switch (shape) {
       case shapes.circle:
         // draw hover
         if (this.viewModel.getHoveredNode() === index) {
-          this.ctx.beginPath();
-          this.ctx.fillStyle = colors.blue;
-          this.ctx.arc(x, y, width / 2 + 3, 0, 2 * Math.PI);
-          this.ctx.fill();
-          this.ctx.stroke();
+          this.drawCircleAtPosition(position, size.width / 2 + 4, colors.blue);
         }
-        this.ctx.beginPath();
-        this.ctx.fillStyle = color;
-        this.ctx.arc(x, y, width / 2, 0, 2 * Math.PI);
-        this.ctx.fill();
+        this.drawCircleAtPosition(position, size.width / 2, color);
         break;
       case shapes.rectangle:
         // draw hover
         if (this.viewModel.getHoveredNode() === index) {
-          this.ctx.beginPath();
-          this.ctx.fillStyle = colors.blue;
-          this.ctx.rect(x - 5, y - 5, width + 10, height + 10);
-          this.ctx.fill();
-          this.ctx.fillStyle = color;
-          this.ctx.stroke();
+          // increase size for visible border
+          var hoverSize = { ...size };
+          hoverSize.width += 2;
+          hoverSize.height += 2;
+          this.drawRectangleAtPosition(position, size, colors.blue);
         }
-        this.ctx.rect(x, y, width, height);
-        this.ctx.fill();
-        break;
-      case shapes.triangle:
-        // draw hover
-        if (this.viewModel.getHoveredNode() === index) {
-          this.ctx.beginPath();
-          this.ctx.fillStyle = colors.blue;
-          this.ctx.moveTo(x - 5, y - 5);
-          this.ctx.lineTo(x + width + 5, y - 5);
-          this.ctx.lineTo(x + width / 2, y + height + 5);
-          this.ctx.lineTo(x - 5, y - 5);
-          this.ctx.fill();
-          this.ctx.fillStyle = color;
-          this.ctx.stroke();
-        }
-        this.ctx.beginPath();
-        this.ctx.fillStyle = color;
-        this.ctx.moveTo(x, y);
-        this.ctx.lineTo(x + width, y);
-        this.ctx.lineTo(x + width / 2, y + height);
-        this.ctx.lineTo(x, y);
-        this.ctx.fill();
-        break;
-      case shapes.diamond:
-        // draw hover
-        if (this.viewModel.getHoveredNode() === index) {
-          this.ctx.beginPath();
-          this.ctx.fillStyle = colors.blue;
-          this.ctx.moveTo(x - 5, y);
-          this.ctx.lineTo(x + width / 2, y + height / 2 + 5);
-          this.ctx.lineTo(x + width + 5, y);
-          this.ctx.lineTo(x + width / 2, y - height / 2 - 5);
-          this.ctx.lineTo(x - 5, y);
-          this.ctx.fill();
-          this.ctx.fillStyle = color;
-          this.ctx.stroke();
-        }
-        this.ctx.beginPath();
-        this.ctx.fillStyle = color;
-        this.ctx.moveTo(x, y);
-        this.ctx.lineTo(x + width / 2, y + height / 2);
-        this.ctx.lineTo(x + width, y);
-        this.ctx.lineTo(x + width / 2, y - height / 2);
-        this.ctx.lineTo(x, y);
-        this.ctx.fill();
+        this.drawRectangleAtPosition(position, size, color);
         break;
     }
   }
@@ -201,33 +144,45 @@ class View {
       const nodePosition = this.viewModel.getNodePosition(children[i]);
       const nodeSize = this.viewModel.getNodeSize(children[i]);
       const nodeShape = this.viewModel.getNodeShape(children[i]);
-      const x = nodePosition.x;
-      const y = nodePosition.y;
-      const width = nodeSize.width;
-      const height = nodeSize.height;
       switch (nodeShape) {
         case shapes.circle:
-          if (Math.pow(position.x - x, 2) + Math.pow(position.y - y, 2) < Math.pow(width / 2, 2)) {
+          if (this.isPointInCircle(position, nodePosition, nodeSize.width / 2)) {
             return children[i];
           }
           break;
         case shapes.rectangle:
-          if (position.x >= x && position.x <= x + width && position.y >= y && position.y <= y + height) {
-            return children[i];
-          }
-          break;
-        case shapes.triangle:
-          if (position.x >= x && position.x <= x + width && position.y >= y && position.y <= y + height) {
-            return children[i];
-          }
-          break;
-        case shapes.diamond:
-          if (position.x >= x && position.x <= x + width && position.y >= y && position.y <= y + height) {
+          if (this.isPointInRectangle(position, position, nodeSize)) {
             return children[i];
           }
           break;
       }
     }
     return null;
+  }
+
+  drawCircleAtPosition(position, radius, color) {
+    this.ctx.beginPath();
+    this.ctx.fillStyle = color;
+    this.ctx.strokeStyle = colors.black;
+    this.ctx.arc(position.x, position.y, radius, 0, 2 * Math.PI);
+    this.ctx.fill();
+    this.ctx.stroke();
+  }
+
+  isPointInCircle(point, position, radius) {
+    return Math.pow(point.x - position.x, 2) + Math.pow(point.y - position.y, 2) < Math.pow(radius, 2);
+  }
+
+  drawRectangleAtPosition(position, size, color) {
+    // centered rectangle
+    this.ctx.beginPath();
+    this.ctx.fillStyle = color;
+    this.ctx.rect(position.x - size.width / 2, position.y - size.height / 2, size.width, size.height);
+    this.ctx.fill();
+    this.ctx.stroke();
+  }
+
+  isPointInRectangle(point, position, size) {
+    return point.x >= position.x - size.width / 2 && point.x <= position.x + size.width / 2 && point.y >= position.y - size.height / 2 && point.y <= position.y + size.height / 2;
   }
 }

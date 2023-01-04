@@ -3,10 +3,12 @@
 // children - array of indices of the children nodes in the model array of nodes
 class Node {
   parent = null;
+  name = null;
   children = [];
 
   constructor(parent) {
     this.parent = parent;
+    name = "";
     this.children = [];
   }
 }
@@ -39,6 +41,8 @@ class Model {
 
   constructor() {
     this.nodes = [new Node(null)];
+    // rename root
+    this.nodes[0].name = "root";
     this.connections = [];
   }
   
@@ -50,6 +54,10 @@ class Model {
 
   getParent(index) {
     return this.nodes[index].parent;
+  }
+
+  getName(index) {
+    return this.nodes[index].name;
   }
 
   getChildren(index) {
@@ -86,6 +94,11 @@ class Model {
       this.nodes[parent].children.push(index);
       return index;
     }
+  }
+
+  // Sets the name of the node at the given index.
+  setName(index, name) {
+    this.nodes[index].name = name;
   }
 
   // Adds connection between the nodes at the given indices.
