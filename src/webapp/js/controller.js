@@ -19,7 +19,7 @@ class Controller {
     var node = this.view.getNodeAtPosition(position);
 
     if (node === null) {
-      node = this.viewModel.addNode(this.viewModel.getRoot());
+      node = this.viewModel.addNode(this.viewModel.getDisplayedLayer());
       this.viewModel.setNodePosition(node, position);
       this.viewModel.setNodeSize(node, { width: 50, height: 50 });
     }
