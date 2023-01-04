@@ -10,6 +10,8 @@ class Controller {
     this.view.canvas.addEventListener("mousedown", this.onMouseDown);
     this.view.canvas.addEventListener("mousemove", this.onMouseMove);
     this.view.canvas.addEventListener("mouseup", this.onMouseUp);
+    // bind scroll event
+    this.view.canvas.addEventListener("wheel", this.onScroll);
   }
 
   onMouseDown = event => {
@@ -77,7 +79,25 @@ class Controller {
     this.updateCursor(position);
   }
 
+  onScroll = event => {
+    // get hovered node
+    const node = this.viewModel.hoveredNode;
+    // if node is not null and the user is zooming in set the currently displayed layer to the 
+    // hovered node
+    if (node !== null && event.deltaY < 0) {
+      this.viewModel.setDisplayedLayer(node);
+      this.view.draw();
+    }
+    // if the user is zooming out and the currently displayed layer is not the root, set the
+    // currently displayed layer to the parent of the currently displayed layer
+    if (event.deltaY > 0 && this.viewModel.displayedLayer !== this.viewModel.getRoot()) {
+      this.viewModel.setDisplayedLayer(this.viewModel.getParent(this.viewModel.displayedLayer));
+      this.view.draw();
+    }
+  }
+
   getMousePosition(event) {
+    event.preventDefault();
     const rect = this.view.canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;

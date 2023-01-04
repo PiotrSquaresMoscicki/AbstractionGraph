@@ -23,6 +23,8 @@ class View {
     this.drawGrid();
 
     this.drawChildNodesAndConnections(this.viewModel.getDisplayedLayer());
+
+    this.drawLayerIndex();
   }
 
   drawChildNodesAndConnections(parent) {
@@ -52,6 +54,13 @@ class View {
     }
     
     this.ctx.stroke();
+  }
+
+  // Writes currently displayed layer index in the top left corner of the canvas
+  drawLayerIndex() {
+    this.ctx.font = "20px Arial";
+    this.ctx.fillStyle = "#000000";
+    this.ctx.fillText(this.viewModel.getDisplayedLayer(), 10, 30);
   }
 
   drawNode(index) {
