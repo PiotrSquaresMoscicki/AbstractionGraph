@@ -22,8 +22,7 @@ class View {
 
     this.drawGrid();
 
-    const root = this.viewModel.getRoot();
-    this.drawChildNodesAndConnections(root);
+    this.drawChildNodesAndConnections(this.viewModel.getDisplayedLayer());
   }
 
   drawChildNodesAndConnections(parent) {
@@ -155,11 +154,14 @@ class View {
   }
 
   getNodeAtPosition(position) {
-    const nodes = this.viewModel.nodes;
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const nodePosition = this.viewModel.getNodePosition(i);
-      const nodeSize = this.viewModel.getNodeSize(i);
-      const nodeShape = this.viewModel.getNodeShape(i);
+    // get displayed layer
+    const displayedLayer = this.viewModel.getDisplayedLayer();
+    const children = this.viewModel.getChildren(displayedLayer);
+    // find node at position
+    for (let i = 0; i < children.length; i++) {
+      const nodePosition = this.viewModel.getNodePosition(children[i]);
+      const nodeSize = this.viewModel.getNodeSize(children[i]);
+      const nodeShape = this.viewModel.getNodeShape(children[i]);
       const x = nodePosition.x;
       const y = nodePosition.y;
       const width = nodeSize.width;
@@ -167,22 +169,22 @@ class View {
       switch (nodeShape) {
         case shapes.circle:
           if (Math.pow(position.x - x, 2) + Math.pow(position.y - y, 2) < Math.pow(width / 2, 2)) {
-            return i;
+            return children[i];
           }
           break;
         case shapes.rectangle:
           if (position.x >= x && position.x <= x + width && position.y >= y && position.y <= y + height) {
-            return i;
+            return children[i];
           }
           break;
         case shapes.triangle:
           if (position.x >= x && position.x <= x + width && position.y >= y && position.y <= y + height) {
-            return i;
+            return children[i];
           }
           break;
         case shapes.diamond:
           if (position.x >= x && position.x <= x + width && position.y >= y && position.y <= y + height) {
-            return i;
+            return children[i];
           }
           break;
       }

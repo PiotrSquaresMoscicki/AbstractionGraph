@@ -29,6 +29,9 @@ class ViewModel extends Model {
   shapes = [];
   colors = [];
 
+  // Currently displayed layer. This is the index of the node which children we'll display
+  displayedLayer = 0;
+
   // drag and drop
   draggedNode = null;
   initialNodePosition = null;
@@ -97,10 +100,21 @@ class ViewModel extends Model {
   removeNode(index) {
     this.removeConnections(index);
     super.removeNode(index);
-    this.positions = this.positions.filter((_, i) => i !== index);
-    this.sizes = this.sizes.filter((_, i) => i !== index);
-    this.shapes = this.shapes.filter((_, i) => i !== index);
-    this.colors = this.colors.filter((_, i) => i !== index);
+    // nullify the properties of the removed node
+    this.positions[index] = null;
+    this.sizes[index] = null;
+    this.shapes[index] = null;
+    this.colors[index] = null;
+  }
+
+  // displayed layer
+
+  setDisplayedLayer(index) {
+    this.displayedLayer = index;
+  }
+
+  getDisplayedLayer() {
+    return this.displayedLayer;
   }
 
   // drag and drop
