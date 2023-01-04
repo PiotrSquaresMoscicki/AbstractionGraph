@@ -10,6 +10,7 @@ const colors = {
   green: "green",
   blue: "blue",
   yellow: "yellow",
+  black: "black",
 };
 
 // Proxy model for the view. It provides a simplified interface for the view to interact with the model.
@@ -36,6 +37,10 @@ class ViewModel extends Model {
   draggedNode = null;
   initialNodePosition = null;
   initialMousePosition = null;
+
+  // creating connection
+  createdConnectionStartNode = null;
+  createdConnectionEndPosition = null;
 
   // hover and selection
   hoveredNode = null;
@@ -141,6 +146,24 @@ class ViewModel extends Model {
 
   getInitialMousePosition() {
     return this.initialMousePosition;
+  }
+
+  // creating connection
+
+  setCreatedConnectionStartNode(index) {
+    this.createdConnectionStartNode = index;
+  }
+
+  getCreatedConnectionStartNode() {
+    return this.createdConnectionStartNode;
+  }
+
+  setCreatedConnectionEndPosition(position) {
+    this.createdConnectionEndPosition = position;
+  }
+
+  getCreatedConnectionEndPosition() {
+    return this.createdConnectionEndPosition;
   }
 
   // hover and selection

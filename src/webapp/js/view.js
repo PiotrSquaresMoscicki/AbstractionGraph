@@ -22,6 +22,8 @@ class View {
 
     this.drawGrid();
 
+    this.drawCreatedConnection();
+
     this.drawChildNodesAndConnections(this.viewModel.getDisplayedLayer());
 
     this.drawLayerIndex();
@@ -29,6 +31,12 @@ class View {
 
   drawChildNodesAndConnections(parent) {
     const children = this.viewModel.getChildren(parent);
+    children.forEach(child => {
+      const outputNodes = this.viewModel.getOutputNodes(child);
+      outputNodes.forEach(outputNode => {
+        this.drawConnection(child, outputNode);
+      });
+    });
     children.forEach(child => {
       this.drawNode(child);
     });
@@ -148,18 +156,40 @@ class View {
     }
   }
 
-  drawConnection(connection) {
-    const start = this.viewModel.getNodePosition(connection.start);
-    const end = this.viewModel.getNodePosition(connection.end);
-    const startAttachPosition = this.viewModel.getConnectionStartAttachPosition(connection.start, connection.end);
-    const endAttachPosition = this.viewModel.getConnectionEndAttachPosition(connection.start, connection.end);
-    const startAttachPoint = this.getAttachPoint(start, startAttachPosition);
-    const endAttachPoint = this.getAttachPoint(end, endAttachPosition);
-
+  drawConnection(start, end) {
+    // get start node position
+    const startNodePosition = this.viewModel.getNodePosition(start);
+    // get end node position
+    const endNodePosition = this.viewModel.getNodePosition(end);
+    // draw line
     this.ctx.beginPath();
-    this.ctx.moveTo(startAttachPoint.x, startAttachPoint.y);
-    this.ctx.lineTo(endAttachPoint.x, endAttachPoint.y);
+    // draw wide black line
+    this.ctx.lineWidth = 5;
+    this.ctx.strokeStyle = colors.black;
+    this.ctx.moveTo(startNodePosition.x, startNodePosition.y);
+    this.ctx.lineTo(endNodePosition.x, endNodePosition.y);
     this.ctx.stroke();
+    this.ctx.lineWidth = 1;
+  }
+
+  drawCreatedConnection() {
+    // check if created connection start node is not null
+    if (this.viewModel.getCreatedConnectionStartNode() === null) {
+      return;
+    }
+    // get start node position
+    const start = this.viewModel.getNodePosition(this.viewModel.getCreatedConnectionStartNode());
+    // get end position
+    const end = this.viewModel.getCreatedConnectionEndPosition();
+    // draw line
+    this.ctx.beginPath();
+    // draw wide black line
+    this.ctx.lineWidth = 5;
+    this.ctx.strokeStyle = colors.black;
+    this.ctx.moveTo(start.x, start.y);
+    this.ctx.lineTo(end.x, end.y);
+    this.ctx.stroke();
+    this.ctx.lineWidth = 1;
   }
 
   getNodeAtPosition(position) {

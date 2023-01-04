@@ -24,15 +24,16 @@ class Controller {
       this.viewModel.setNodeSize(node, { width: 50, height: 50 });
     }
     
-    // remove node if pressed with alt key
     if (event.altKey) {
+      // remove node if pressed with alt key
       this.viewModel.removeNode(node);
       node = null;
-    }
-
-    // start dragging node if node is not null
-
-    if (node !== null) {
+    } else if (event.shiftKey) {
+      // start making connection if pressed with shift key
+      this.viewModel.setCreatedConnectionStartNode(node);
+      this.viewModel.setCreatedConnectionEndPosition(position);
+    } else if (node !== null) {
+      // start dragging node if node is not null
       this.viewModel.setDraggedNode(node);
       const nodePosition = this.viewModel.getNodePosition(node);
       this.viewModel.setInitialNodePosition(nodePosition);
@@ -59,7 +60,8 @@ class Controller {
       newNodePosition.x = Math.round(newNodePosition.x / 20) * 20 + 10;
       newNodePosition.y = Math.round(newNodePosition.y / 20) * 20 + 10;
       this.viewModel.setNodePosition(node, newNodePosition);
-      this.view.draw();
+    } else if (this.viewModel.connectionStartNode !== null) {
+      this.viewModel.setCreatedConnectionEndPosition(position);
     }
     
     this.updateCursor(position);
@@ -71,6 +73,15 @@ class Controller {
     // if we were dragging a node, stop dragging
     if (this.viewModel.draggedNode !== null) {
       this.viewModel.setDraggedNode(null);
+      this.view.draw();
+    } else if (this.viewModel.getCreatedConnectionStartNode() !== null) {
+      // if we were making a connection, stop making the connection
+      const startNode = this.viewModel.getCreatedConnectionStartNode();
+      const endNode = this.view.getNodeAtPosition(this.viewModel.getCreatedConnectionEndPosition());
+      if (endNode !== null) {
+        this.viewModel.addConnection(startNode, endNode);
+      }
+      this.viewModel.setCreatedConnectionStartNode(null);
       this.view.draw();
     }
 

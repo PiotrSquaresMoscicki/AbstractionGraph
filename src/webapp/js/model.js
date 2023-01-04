@@ -17,6 +17,11 @@ class Node {
 class Connection {
   input = null;
   output = null;
+
+  constructor(input, output) {
+    this.input = input;
+    this.output = output;
+  }
 }
 
 // Model representing a graph of nodes and connections. Each node can have multiple input and output
@@ -51,11 +56,11 @@ class Model {
     return this.nodes[index].children;
   }
   
-  getInputNodesIndices(index) {
+  getInputNodes(index) { 
     return this.connections.filter(connection => connection.output === index).map(connection => connection.input);
   }
 
-  getOutputNodesIndices(index) {
+  getOutputNodes(index) {
     return this.connections.filter(connection => connection.input === index).map(connection => connection.output);
   }
   
