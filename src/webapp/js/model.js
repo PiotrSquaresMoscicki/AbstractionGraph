@@ -65,11 +65,15 @@ class Model {
   }
   
   getInputNodes(index) { 
-    return this.connections.filter(connection => connection.output === index).map(connection => connection.input);
+    return this.connections
+      .filter(connection => connection !== null && connection.output === index)
+      .map(connection => connection.input);
   }
 
   getOutputNodes(index) {
-    return this.connections.filter(connection => connection.input === index).map(connection => connection.output);
+    return this.connections
+      .filter(connection => connection !== null && connection.input === index)
+      .map(connection => connection.output);
   }
   
   getConnectionIndex(start, end) {
@@ -123,7 +127,7 @@ class Model {
   // Nullifies all connections connected with the node at the given index.
   removeConnections(index) {
     this.connections = this.connections.map(connection => {
-      if (connection.input === index || connection.output === index) {
+      if (connection !== null && (connection.input === index || connection.output === index)) {
         return null;
       } else {
         return connection;
