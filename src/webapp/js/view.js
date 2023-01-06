@@ -85,17 +85,6 @@ class View {
         }
         this.drawCircleAtPosition(position, size.width / 2, color);
         break;
-      case shapes.rectangle:
-        // draw hover
-        if (this.viewModel.getHoveredNode() === index) {
-          // increase size for visible border
-          var hoverSize = { ...size };
-          hoverSize.width += 2;
-          hoverSize.height += 2;
-          this.drawRectangleAtPosition(position, size, colors.blue);
-        }
-        this.drawRectangleAtPosition(position, size, color);
-        break;
     }
   }
 
@@ -150,11 +139,6 @@ class View {
             return children[i];
           }
           break;
-        case shapes.rectangle:
-          if (this.isPointInRectangle(position, position, nodeSize)) {
-            return children[i];
-          }
-          break;
       }
     }
     return null;
@@ -171,18 +155,5 @@ class View {
 
   isPointInCircle(point, position, radius) {
     return Math.pow(point.x - position.x, 2) + Math.pow(point.y - position.y, 2) < Math.pow(radius, 2);
-  }
-
-  drawRectangleAtPosition(position, size, color) {
-    // centered rectangle
-    this.ctx.beginPath();
-    this.ctx.fillStyle = color;
-    this.ctx.rect(position.x - size.width / 2, position.y - size.height / 2, size.width, size.height);
-    this.ctx.fill();
-    this.ctx.stroke();
-  }
-
-  isPointInRectangle(point, position, size) {
-    return point.x >= position.x - size.width / 2 && point.x <= position.x + size.width / 2 && point.y >= position.y - size.height / 2 && point.y <= position.y + size.height / 2;
   }
 }

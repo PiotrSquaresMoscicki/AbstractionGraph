@@ -1,6 +1,5 @@
 const shapes = {
   circle: "circle",
-  rectangle: "rectangle",
 };
 
 const colors = {
@@ -51,7 +50,7 @@ class ViewModel extends Model {
     // add position, size, shape and color for the root node
     this.positions = [{ x: 0, y: 0 }];
     this.sizes = [{ width: 0, height: 0 }];
-    this.shapes = [shapes.rectangle];
+    this.shapes = [shapes.circle];
     this.colors = [colors.red];
   }
 
