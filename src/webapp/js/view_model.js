@@ -1,5 +1,6 @@
 const shapes = {
-  circle: "circle",
+  oval: "oval",
+  rectangle: "rectangle",
 };
 
 const colors = {
@@ -94,8 +95,13 @@ class ViewModel extends Model {
     const index = super.addNode(parent);
     this.positions[index] = { x: 0, y: 0 };
     this.sizes[index] = { width: 0, height: 0 };
-    this.shapes[index] = shapes.circle;
-    this.colors[index] = colors.red;
+    // select random shape and color
+    this.shapes[index] = Object.values(shapes)[
+      Math.floor(Math.random() * Object.values(shapes).length)
+    ];
+    this.colors[index] = Object.values(colors)[
+      Math.floor(Math.random() * Object.values(colors).length)
+    ];
     return index;
   }
 

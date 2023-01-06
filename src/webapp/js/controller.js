@@ -21,7 +21,7 @@ class Controller {
     if (node === null) {
       node = this.viewModel.addNode(this.viewModel.getDisplayedLayer());
       this.viewModel.setNodePosition(node, position);
-      this.viewModel.setNodeSize(node, { width: 50, height: 50 });
+      this.viewModel.setNodeSize(node, { width: 150, height: 50 });
     }
     
     if (event.altKey) {

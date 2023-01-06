@@ -78,12 +78,27 @@ class View {
     const color = this.viewModel.getNodeColor(index);
 
     switch (shape) {
-      case shapes.circle:
+      case shapes.oval:
         // draw hover
         if (this.viewModel.getHoveredNode() === index) {
-          this.drawCircleAtPosition(position, size.width / 2 + 4, colors.blue);
+          var hoverSize = {
+            width: size.width + 8,
+            height: size.height + 8
+          };
+          this.drawOvalAtPosition(position, hoverSize, colors.blue);
         }
-        this.drawCircleAtPosition(position, size.width / 2, color);
+        this.drawOvalAtPosition(position, size, color);
+        break;
+      case shapes.rectangle:
+        // draw hover
+        if (this.viewModel.getHoveredNode() === index) {
+          var hoverSize = {
+            width: size.width + 8,
+            height: size.height + 8
+          };
+          this.drawRectangleAtPosition(position, hoverSize, colors.blue);
+        }
+        this.drawRectangleAtPosition(position, size, color);
         break;
     }
   }
@@ -134,8 +149,13 @@ class View {
       const nodeSize = this.viewModel.getNodeSize(children[i]);
       const nodeShape = this.viewModel.getNodeShape(children[i]);
       switch (nodeShape) {
-        case shapes.circle:
-          if (this.isPointInCircle(position, nodePosition, nodeSize.width / 2)) {
+        case shapes.oval:
+          if (this.isPointInOval(position, nodePosition, nodeSize)) {
+            return children[i];
+          }
+          break;
+        case shapes.rectangle:
+          if (this.isPointInRectangle(position, nodePosition, nodeSize)) {
             return children[i];
           }
           break;
@@ -155,5 +175,39 @@ class View {
 
   isPointInCircle(point, position, radius) {
     return Math.pow(point.x - position.x, 2) + Math.pow(point.y - position.y, 2) < Math.pow(radius, 2);
+  }
+
+  drawOvalAtPosition(position, size, color) {
+    this.ctx.beginPath();
+    this.ctx.fillStyle = color;
+    this.ctx.strokeStyle = colors.black;
+    this.ctx.ellipse(position.x, position.y, size.width / 2, size.height / 2, 0, 0, 2 * Math.PI);
+    this.ctx.fill();
+    this.ctx.stroke();
+  }
+
+  isPointInOval(point, position, size) {
+    const x = (point.x - position.x) / (size.width / 2);
+    const y = (point.y - position.y) / (size.height / 2);
+    return Math.pow(x, 2) + Math.pow(y, 2) < 1;
+  }
+
+  drawRectangleAtPosition(position, size, color) {
+    // draw rectangle centered at position
+    this.ctx.beginPath();
+    this.ctx.fillStyle = color;
+    this.ctx.strokeStyle = colors.black;
+    this.ctx.rect(position.x - size.width / 2, position.y - size.height / 2, size.width, size.height);
+    this.ctx.fill();
+    this.ctx.stroke();
+  }
+
+  isPointInRectangle(point, position, size) {
+    return (
+      point.x >= position.x - size.width / 2 &&
+      point.x <= position.x + size.width / 2 &&
+      point.y >= position.y - size.height / 2 &&
+      point.y <= position.y + size.height / 2
+    );
   }
 }
