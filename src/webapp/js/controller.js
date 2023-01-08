@@ -1,8 +1,6 @@
 class Controller {
   viewModel;
   view;
-
-  hasInput = false;
   
   constructor(viewModel, view) {
     this.viewModel = viewModel;
@@ -21,14 +19,9 @@ class Controller {
     var node = this.view.getNodeAtPosition(position);
 
     if (node === null) {
-      //node = this.viewModel.addNode(this.viewModel.getDisplayedLayer());
-      //this.viewModel.setNodePosition(node, position);
-      //this.viewModel.setNodeSize(node, { width: 150, height: 50 });
-      // add input box if there is no input box on the canvas
-      if (!this.hasInput) {
-        this.addInputBox(position);
-        this.hasInput = true;
-      }
+      node = this.viewModel.addNode(this.viewModel.getDisplayedLayer());
+      this.viewModel.setNodePosition(node, position);
+      this.viewModel.setNodeSize(node, { width: 150, height: 50 });
     }
     
     if (event.altKey) {
@@ -138,50 +131,5 @@ class Controller {
   updateHoveredNode(position) {
     const node = this.view.getNodeAtPosition(position);
     this.viewModel.setHoveredNode(node);
-  }
-
-  // Function to dynamically ad an input box on the canvas
-  addInputBox(position) {
-    console.log("add input box");
-
-    var input = document.createElement('input');
-
-    input.type = 'text';
-    input.style.position = 'fixed';
-    input.style.left = (position.x - 4) + 'px';
-    input.style.top = (position.y - 4) + 'px';
-
-    // draw rectangle around input box
-    this.view.context.beginPath();
-
-    this.view.context.rect(position.x - 4, position.y - 4, 100, 20);
-
-    this.view.context.stroke();
-
-    input.onkeydown = handleEnter;
-
-    document.body.appendChild(input);
-
-    input.focus();
-
-    hasInput = true;
-  }
-
-  // Function to handle the enter key
-  handleEnter(event) {
-    if (event.keyCode === 13) {
-      // Enter key pressed
-      drawText(this.value, parseInt(this.style.left, 10), parseInt(this.style.top, 10));
-      hasInput = false;
-      document.body.removeChild(event.target);
-    }
-  }
-
-  // Function to draw text on the canvas
-  drawText(text, x, y) {
-    this.view.context.font = '14px Arial';
-    this.view.context.fillText(text, x, y);
-
-    this.view.draw();
   }
 }
