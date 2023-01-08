@@ -46,6 +46,11 @@ class ViewModel extends Model {
   // grid
   gridSize = 20;
 
+  // context menu
+  contextMenuPosition = null;
+  contextMenuSize = null;
+  contextMenuItemSize = null;
+
   constructor() {
     super();
     // add position, size, shape and color for the root node
@@ -53,6 +58,9 @@ class ViewModel extends Model {
     this.sizes = [{ width: 0, height: 0 }];
     this.shapes = [shapes.circle];
     this.colors = [colors.red];
+    // set menu sizes
+    this.contextMenuSize = { width: 100, height: 100 };
+    this.contextMenuItemSize = { width: 100, height: 20 };
   }
 
   // getters
@@ -177,5 +185,35 @@ class ViewModel extends Model {
 
   getHoveredNode() {
     return this.hoveredNode;
+  }
+
+  //context menu
+
+  isContextMenuOpen() {
+    return this.contextMenuPosition !== null;
+  }
+
+  setContextMenuPosition(position) {
+    this.contextMenuPosition = position;
+  }
+
+  getContextMenuPosition() {
+    return this.contextMenuPosition;
+  }
+
+  setContextMenuSize(size) {
+    this.contextMenuSize = size;
+  }
+
+  getContextMenuSize() {
+    return this.contextMenuSize;
+  }
+
+  setContextMenuItemSize(size) {
+    this.contextMenuItemSize = size;
+  }
+
+  getContextMenuItemSize() {
+    return this.contextMenuItemSize;
   }
 }

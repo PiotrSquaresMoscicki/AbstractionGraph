@@ -27,6 +27,8 @@ class View {
     this.drawChildNodesAndConnections(this.viewModel.getDisplayedLayer());
 
     this.drawLayerIndex();
+
+    this.drawContextMenu();
   }
 
   drawChildNodesAndConnections(parent) {
@@ -208,6 +210,59 @@ class View {
       point.x <= position.x + size.width / 2 &&
       point.y >= position.y - size.height / 2 &&
       point.y <= position.y + size.height / 2
+    );
+  }
+
+  drawContextMenu() {
+    // check if context menu is open
+    if (!this.viewModel.isContextMenuOpen()) {
+      return;
+    }
+    // get context menu position
+    const position = this.viewModel.getContextMenuPosition();
+    // get context menu size
+    const size = this.viewModel.getContextMenuSize();
+    // draw rectangle
+    this.ctx.beginPath();
+    this.ctx.fillStyle = colors.white;
+    this.ctx.strokeStyle = colors.black;
+    this.ctx.rect(position.x, position.y, size.width, size.height);
+    this.ctx.fill();
+    this.ctx.stroke();
+    // draw context menu items
+    this.drawContextMenuItem(0, "Add Node");
+    this.drawContextMenuItem(1, "Add Connection");
+  }
+
+  drawContextMenuItem(index, text) {
+    // get context menu position
+    const position = this.viewModel.getContextMenuPosition();
+    // get context menu size
+    const size = this.viewModel.getContextMenuSize();
+    // get context menu item size
+    const itemSize = this.viewModel.getContextMenuItemSize();
+    // get context menu item position
+    const itemPosition = {
+      x: position.x,
+      y: position.y + index * itemSize.height
+    };
+    // draw rectangle
+    this.ctx.beginPath();
+    this.ctx.fillStyle = colors.white;
+    this.ctx.strokeStyle = colors.black;
+    this.ctx.rect(itemPosition.x, itemPosition.y, size.width, itemSize.height);
+    this.ctx.fill();
+    this.ctx.stroke();
+    // draw text
+    this.ctx.beginPath();
+    this.ctx.fillStyle = colors.black;
+    this.ctx.font = "20px Arial";
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+    this.ctx.fillText(
+      text,
+      itemPosition.x + size.width / 2,
+      itemPosition.y + itemSize.height / 2
     );
   }
 }

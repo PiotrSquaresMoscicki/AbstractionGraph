@@ -40,6 +40,8 @@ class Controller {
       this.viewModel.setInitialMousePosition(position);
     }
 
+    this.viewModel.setContextMenuPosition(position);
+
     this.updateCursor(position);
     this.updateHoveredNode(position);
     this.view.draw();
