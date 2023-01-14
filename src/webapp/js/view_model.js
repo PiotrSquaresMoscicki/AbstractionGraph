@@ -3,14 +3,6 @@ const shapes = {
   rectangle: "rectangle",
 };
 
-const colors = {
-  red: "red",
-  green: "green",
-  blue: "blue",
-  yellow: "yellow",
-  black: "black",
-};
-
 // Proxy model for the view. It provides a simplified interface for the view to interact with the model.
 // It also provides a way to listen to changes in the model. It also contains additional data required 
 // to visualize the model like nodes positions, sizes, shapes and colors.
@@ -46,10 +38,6 @@ class ViewModel extends Model {
   // grid
   gridSize = 20;
 
-  // context menu
-  contextMenuPosition = null;
-  contextMenuSize = null;
-  contextMenuItemSize = null;
 
   constructor() {
     super();
@@ -57,10 +45,7 @@ class ViewModel extends Model {
     this.positions = [{ x: 0, y: 0 }];
     this.sizes = [{ width: 0, height: 0 }];
     this.shapes = [shapes.circle];
-    this.colors = [colors.red];
-    // set menu sizes
-    this.contextMenuSize = { width: 100, height: 100 };
-    this.contextMenuItemSize = { width: 100, height: 20 };
+    this.colors = [color.red];
   }
 
   // getters
@@ -187,33 +172,4 @@ class ViewModel extends Model {
     return this.hoveredNode;
   }
 
-  //context menu
-
-  isContextMenuOpen() {
-    return this.contextMenuPosition !== null;
-  }
-
-  setContextMenuPosition(position) {
-    this.contextMenuPosition = position;
-  }
-
-  getContextMenuPosition() {
-    return this.contextMenuPosition;
-  }
-
-  setContextMenuSize(size) {
-    this.contextMenuSize = size;
-  }
-
-  getContextMenuSize() {
-    return this.contextMenuSize;
-  }
-
-  setContextMenuItemSize(size) {
-    this.contextMenuItemSize = size;
-  }
-
-  getContextMenuItemSize() {
-    return this.contextMenuItemSize;
-  }
 }
