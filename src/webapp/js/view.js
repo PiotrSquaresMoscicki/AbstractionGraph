@@ -13,13 +13,13 @@ class View {
     this.contextMenu = new ContextMenu(this.canvas);
 
     // add test items to context menu
-    this.contextMenu.pushItem({
+    this.contextMenu.items.push({
       text: "Add node",
       action: () => {
         console.log("Add node");
       }
     });
-    this.contextMenu.pushItem({
+    this.contextMenu.items.push({
       text: "Add connection",
       action: () => {
         console.log("Add connection");
@@ -47,7 +47,6 @@ class View {
 
     this.drawLayerIndex();
 
-    console.log("draw context menu");
     this.contextMenu.draw(this.ctx);
   }
 

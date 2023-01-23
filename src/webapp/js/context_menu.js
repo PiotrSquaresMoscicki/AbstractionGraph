@@ -14,22 +14,18 @@ class ContextMenu {
     hoveredItemIdx = -1;
 
     position = {x: 0, y: 0};
-    itemSize = {width: 100, height: 20};
+    itemSize = {width: 150, height: 20};
 
-    backgroundColor = "#000000";
-    textColor = "#FFFFFF";
-    borderColor = "#FFFFFF";
+    backgroundColor = "#eeeeee";
+    textColor = "#000000";
+    borderColor = "#000000";
     borderWith = 1;
-    hoverColor = "#FFFFFF";
+    hoverColor = "#aaaaaa";
 
     constructor(canvas) {
         this.canvas = canvas;
         this.canvas.addEventListener("mousemove", this.onMouseMove);
         this.canvas.addEventListener("mousedown", this.onMouseDown);
-    }
-
-    pushItem(item) {
-        this.items.push(item);
     }
 
     onMouseMove = event => {
