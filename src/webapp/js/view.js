@@ -58,9 +58,10 @@ class View {
         this.drawConnection(child, outputNode);
       });
     });
-    children.forEach(child => {
-      this.drawNode(child);
-    });
+    // draw nodes from last to first
+    for (let i = children.length - 1; i >= 0; i--) {
+      this.drawNode(children[i]);
+    }
   }
 
   drawGrid() {
