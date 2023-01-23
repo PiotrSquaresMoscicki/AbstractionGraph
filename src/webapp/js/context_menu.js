@@ -26,10 +26,6 @@ class ContextMenu {
         this.canvas = canvas;
         this.canvas.addEventListener("mousemove", this.onMouseMove);
         this.canvas.addEventListener("mouseup", this.onMouseUp);
-        // add context menu handler to canvas
-        this.canvas.addEventListener("contextmenu", event => {
-            event.preventDefault();
-        });
     }
 
     onMouseMove = event => {
@@ -52,13 +48,6 @@ class ContextMenu {
     }    
 
     onMouseUp = event => {
-        // make visible on RMB
-        if (event.button === 2) {
-            this.visible = true;
-            this.position = this.getMousePosition(event);
-            return;
-        }
-
         if (!this.visible) 
             return;
 

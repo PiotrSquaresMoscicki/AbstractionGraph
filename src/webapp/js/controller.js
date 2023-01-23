@@ -10,6 +10,8 @@ class Controller {
     this.view.canvas.addEventListener("mousedown", this.onMouseDown);
     this.view.canvas.addEventListener("mousemove", this.onMouseMove);
     this.view.canvas.addEventListener("mouseup", this.onMouseUp);
+    // add context menu handler to canvas
+    this.view.canvas.addEventListener("contextmenu", this.onContextMenu);
     // bind scroll event
     this.view.canvas.addEventListener("wheel", this.onScroll);
   }
@@ -89,6 +91,14 @@ class Controller {
     // get mouse position and update the cursor
     const position = this.getMousePosition(event);
     this.updateCursor(position);
+  }
+
+  // context menu handler
+  onContextMenu = event => {
+    event.preventDefault();
+    this.view.contextMenu.position = this.getMousePosition(event);
+    this.view.contextMenu.visible = true;
+    this.view.draw();
   }
 
   onScroll = event => {
