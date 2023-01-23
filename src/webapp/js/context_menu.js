@@ -25,14 +25,20 @@ class ContextMenu {
     constructor(canvas) {
         this.canvas = canvas;
         this.canvas.addEventListener("mousemove", this.onMouseMove);
-        this.canvas.addEventListener("mousedown", this.onMouseDown);
+        this.canvas.addEventListener("mouseup", this.onMouseUp);
+        // add context menu handler to canvas
+        this.canvas.addEventListener("contextmenu", event => {
+            event.preventDefault();
+            this.visible = true;
+            this.position = this.getMousePosition(event);
+        });
     }
 
     onMouseMove = event => {
-        const position = this.getMousePosition(event);
-
         if (!this.visible) 
             return;
+
+        const position = this.getMousePosition(event);
 
         this.hoveredItemIdx = -1;
         for (let i = 0; i < this.items.length; i++) {
@@ -47,14 +53,11 @@ class ContextMenu {
         }
     }    
 
-    onMouseDown = event => {
-        const position = this.getMousePosition(event);
-        if (!this.visible) {
-            // show context menu
-            this.visible = true;
-            this.position = position;
+    onMouseUp = event => {
+        if (!this.visible) 
             return;
-        }
+
+        const position = this.getMousePosition(event);
 
         for (let i = 0; i < this.items.length; i++) {
             if (position.x >= this.position.x
@@ -63,10 +66,11 @@ class ContextMenu {
                 && position.y <= this.position.y + this.itemSize.height * (i + 1))
             {
                 this.items[i].action();
-                this.visible = false;
                 break;
             }
         }
+
+        this.visible = false;
     }
 
     draw(ctx) {
