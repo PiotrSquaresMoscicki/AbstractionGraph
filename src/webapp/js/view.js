@@ -37,7 +37,7 @@ class View {
 
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
+    
     this.drawGrid();
 
     this.drawCreatedConnection();
@@ -46,7 +46,7 @@ class View {
 
     this.drawLayerIndex();
 
-    this.contextMenu.draw(this.ctx);
+    //this.contextMenu.draw(this.ctx);
   }
 
   drawChildNodesAndConnections(parent) {
@@ -98,25 +98,25 @@ class View {
     const color = this.viewModel.getNodeColor(index);
 
     switch (shape) {
-      case shapes.oval:
+      case Shape.oval:
         // draw hover
         if (this.viewModel.getHoveredNode() === index) {
           var hoverSize = {
             width: size.width + 8,
             height: size.height + 8
           };
-          this.drawOvalAtPosition(position, hoverSize, colors.blue);
+          this.drawOvalAtPosition(position, hoverSize, Color.blue);
         }
         this.drawOvalAtPosition(position, size, color);
         break;
-      case shapes.rectangle:
+      case Shape.rectangle:
         // draw hover
         if (this.viewModel.getHoveredNode() === index) {
           var hoverSize = {
             width: size.width + 8,
             height: size.height + 8
           };
-          this.drawRectangleAtPosition(position, hoverSize, colors.blue);
+          this.drawRectangleAtPosition(position, hoverSize, Color.blue);
         }
         this.drawRectangleAtPosition(position, size, color);
         break;
@@ -132,7 +132,7 @@ class View {
     this.ctx.beginPath();
     // draw wide black line
     this.ctx.lineWidth = 5;
-    this.ctx.strokeStyle = colors.black;
+    this.ctx.strokeStyle = Color.black;
     this.ctx.moveTo(startNodePosition.x, startNodePosition.y);
     this.ctx.lineTo(endNodePosition.x, endNodePosition.y);
     this.ctx.stroke();
@@ -152,7 +152,7 @@ class View {
     this.ctx.beginPath();
     // draw wide black line
     this.ctx.lineWidth = 5;
-    this.ctx.strokeStyle = colors.black;
+    this.ctx.strokeStyle = Color.black;
     this.ctx.moveTo(start.x, start.y);
     this.ctx.lineTo(end.x, end.y);
     this.ctx.stroke();
@@ -169,12 +169,12 @@ class View {
       const nodeSize = this.viewModel.getNodeSize(children[i]);
       const nodeShape = this.viewModel.getNodeShape(children[i]);
       switch (nodeShape) {
-        case shapes.oval:
+        case Shape.oval:
           if (this.isPointInOval(position, nodePosition, nodeSize)) {
             return children[i];
           }
           break;
-        case shapes.rectangle:
+        case Shape.rectangle:
           if (this.isPointInRectangle(position, nodePosition, nodeSize)) {
             return children[i];
           }
@@ -187,7 +187,7 @@ class View {
   drawCircleAtPosition(position, radius, color) {
     this.ctx.beginPath();
     this.ctx.fillStyle = color;
-    this.ctx.strokeStyle = colors.black;
+    this.ctx.strokeStyle = Color.black;
     this.ctx.arc(position.x, position.y, radius, 0, 2 * Math.PI);
     this.ctx.fill();
     this.ctx.stroke();
@@ -200,7 +200,7 @@ class View {
   drawOvalAtPosition(position, size, color) {
     this.ctx.beginPath();
     this.ctx.fillStyle = color;
-    this.ctx.strokeStyle = colors.black;
+    this.ctx.strokeStyle = Color.black;
     this.ctx.ellipse(position.x, position.y, size.width / 2, size.height / 2, 0, 0, 2 * Math.PI);
     this.ctx.fill();
     this.ctx.stroke();
@@ -216,7 +216,7 @@ class View {
     // draw rectangle centered at position
     this.ctx.beginPath();
     this.ctx.fillStyle = color;
-    this.ctx.strokeStyle = colors.black;
+    this.ctx.strokeStyle = Color.black;
     this.ctx.rect(position.x - size.width / 2, position.y - size.height / 2, size.width, size.height);
     this.ctx.fill();
     this.ctx.stroke();

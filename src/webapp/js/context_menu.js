@@ -79,7 +79,6 @@ class ContextMenu {
         ctx.fill();
         ctx.stroke();
 
-
         if (this.hoveredItemIdx >= 0) {
             ctx.fillStyle = this.hoverColor;
             ctx.beginPath();

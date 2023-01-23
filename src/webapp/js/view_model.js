@@ -1,4 +1,4 @@
-const shapes = {
+const Shape = {
   oval: "oval",
   rectangle: "rectangle",
 };
@@ -44,8 +44,8 @@ class ViewModel extends Model {
     // add position, size, shape and color for the root node
     this.positions = [{ x: 0, y: 0 }];
     this.sizes = [{ width: 0, height: 0 }];
-    this.shapes = [shapes.circle];
-    this.colors = [color.red];
+    this.shapes = [Shape.circle];
+    this.colors = [Color.red];
   }
 
   // getters
@@ -89,11 +89,11 @@ class ViewModel extends Model {
     this.positions[index] = { x: 0, y: 0 };
     this.sizes[index] = { width: 0, height: 0 };
     // select random shape and color
-    this.shapes[index] = Object.values(shapes)[
-      Math.floor(Math.random() * Object.values(shapes).length)
+    this.shapes[index] = Object.values(Shape)[
+      Math.floor(Math.random() * Object.values(Shape).length)
     ];
-    this.colors[index] = Object.values(colors)[
-      Math.floor(Math.random() * Object.values(colors).length)
+    this.colors[index] = Object.values(Color)[
+      Math.floor(Math.random() * Object.values(Color).length)
     ];
     return index;
   }
