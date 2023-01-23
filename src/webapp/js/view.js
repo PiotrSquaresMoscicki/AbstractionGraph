@@ -8,25 +8,26 @@ class View {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.viewModel = viewModel;
-    this.resize();
-    window.addEventListener("resize", this.resize);
 
     // initialize context menu
     this.contextMenu = new ContextMenu(this.canvas);
 
     // add test items to context menu
-    this.contextMenu.items.push({
+    this.contextMenu.pushItem({
       text: "Add node",
       action: () => {
         console.log("Add node");
       }
     });
-    this.contextMenu.items.push({
+    this.contextMenu.pushItem({
       text: "Add connection",
       action: () => {
         console.log("Add connection");
       }
     });
+    
+    this.resize();
+    window.addEventListener("resize", this.resize);
   }
 
   resize = () => {
@@ -46,7 +47,8 @@ class View {
 
     this.drawLayerIndex();
 
-    //this.contextMenu.draw(this.ctx);
+    console.log("draw context menu");
+    this.contextMenu.draw(this.ctx);
   }
 
   drawChildNodesAndConnections(parent) {

@@ -28,7 +28,13 @@ class ContextMenu {
         this.canvas.addEventListener("mousedown", this.onMouseDown);
     }
 
-    onMouseMove(position) {
+    pushItem(item) {
+        this.items.push(item);
+    }
+
+    onMouseMove = event => {
+        const position = this.getMousePosition(event);
+
         if (!this.visible) 
             return;
 
@@ -45,7 +51,8 @@ class ContextMenu {
         }
     }    
 
-    onMouseDown(position) {
+    onMouseDown = event => {
+        const position = this.getMousePosition(event);
         if (!this.visible) {
             // show context menu
             this.visible = true;
@@ -94,4 +101,13 @@ class ContextMenu {
             ctx.fillText(this.items[i].text, this.position.x + 5, this.position.y + this.itemSize.height * (i + 0.5));
         }
     }
+    
+
+  getMousePosition(event) {
+    event.preventDefault();
+    const rect = this.canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    return { x, y };
+  }
 }

@@ -25,7 +25,9 @@ document.documentElement.style.overflow = 'hidden';  // firefox, chrome
 document.body.scroll = "no"; // ie only
 
 const viewModel = new ViewModel();
+console.log("initialize view model");
 const view = new View(document.getElementById("draw"), viewModel);
+console.log("initialize controller");
 const controller = new Controller(viewModel, view);
 
 console.log("initialized main.js");
