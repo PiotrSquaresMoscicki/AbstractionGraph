@@ -17,6 +17,12 @@ class Controller {
   }
 
   onMouseDown = event => {
+    // skip if context menu is visible
+    if (this.view.contextMenu.visible) {
+      this.view.draw();
+      return;
+    }
+
     const position = this.getMousePosition(event);
     var node = this.view.getNodeAtPosition(position);
 
@@ -49,6 +55,13 @@ class Controller {
   }
 
   onMouseMove = event => {
+    // skip if context menu is visible
+    if (this.view.contextMenu.visible) {
+      this.view.contextMenu.onMouseMove(this.getMousePosition(event));
+      this.view.draw();
+      return;
+    }
+
     const position = this.getMousePosition(event);
     
     if (this.viewModel.draggedNode !== null) {
@@ -73,6 +86,17 @@ class Controller {
   }
 
   onMouseUp = event => {
+    // skip if context menu is visible
+    if (this.view.contextMenu.visible) {
+      this.view.contextMenu.onMouseUp(this.getMousePosition(event));
+      // update hover if menu was closed
+      if (!this.view.contextMenu.visible) {
+        this.updateHoveredNode(this.getMousePosition(event));
+      }
+      this.view.draw();
+      return;
+    }
+
     // if we were dragging a node, stop dragging
     if (this.viewModel.draggedNode !== null) {
       this.viewModel.setDraggedNode(null);
@@ -102,6 +126,12 @@ class Controller {
   }
 
   onScroll = event => {
+    // skip if context menu is visible
+    if (this.view.contextMenu.visible) {
+      this.view.draw();
+      return;
+    }
+
     // get hovered node
     const node = this.viewModel.hoveredNode;
     // if node is not null and the user is zooming in set the currently displayed layer to the 

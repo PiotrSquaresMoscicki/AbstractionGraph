@@ -22,17 +22,9 @@ class ContextMenu {
     borderWith = 1;
     hoverColor = "#aaaaaa";
 
-    constructor(canvas) {
-        this.canvas = canvas;
-        this.canvas.addEventListener("mousemove", this.onMouseMove);
-        this.canvas.addEventListener("mouseup", this.onMouseUp);
-    }
-
-    onMouseMove = event => {
+    onMouseMove(position) {
         if (!this.visible) 
             return;
-
-        const position = this.getMousePosition(event);
 
         this.hoveredItemIdx = -1;
         for (let i = 0; i < this.items.length; i++) {
@@ -47,11 +39,9 @@ class ContextMenu {
         }
     }    
 
-    onMouseUp = event => {
+    onMouseUp(position) {
         if (!this.visible) 
             return;
-
-        const position = this.getMousePosition(event);
 
         for (let i = 0; i < this.items.length; i++) {
             if (position.x >= this.position.x
@@ -95,13 +85,4 @@ class ContextMenu {
             ctx.fillText(this.items[i].text, this.position.x + 5, this.position.y + this.itemSize.height * (i + 0.5));
         }
     }
-    
-
-  getMousePosition(event) {
-    event.preventDefault();
-    const rect = this.canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    return { x, y };
-  }
 }
