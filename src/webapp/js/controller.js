@@ -18,7 +18,8 @@ class Controller {
     const position = this.getMousePosition(event);
     var node = this.view.getNodeAtPosition(position);
 
-    if (node === null) {
+    // add new node if there is no node at position and LMB is pressed
+    if (node === null && event.button === 0) {
       node = this.viewModel.addNode(this.viewModel.getDisplayedLayer());
       this.viewModel.setNodePosition(node, position);
       this.viewModel.setNodeSize(node, { width: 150, height: 50 });
