@@ -4,6 +4,7 @@ class View {
   viewModel;
   comntextMenu;
   inputBox;
+  nodeNameTextSize = 16;
 
   constructor(canvas, viewModel) {
     this.canvas = canvas;
@@ -130,10 +131,10 @@ class View {
     }
 
     // draw centered node name
-    this.ctx.font = "20px Arial";
+    this.ctx.font = this.nodeNameTextSize + "px Arial";
     this.ctx.fillStyle = "#000000";
     this.ctx.textAlign = "center";
-    this.ctx.fillText(name, position.x, position.y);
+    this.ctx.fillText(name, position.x + 1, position.y + this.nodeNameTextSize / 2 - 2);
   }
 
   drawConnection(start, end) {
