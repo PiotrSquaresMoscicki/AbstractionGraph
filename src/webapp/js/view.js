@@ -102,6 +102,7 @@ class View {
     const size = this.viewModel.getNodeSize(index);
     const shape = this.viewModel.getNodeShape(index);
     const color = this.viewModel.getNodeColor(index);
+    const name = this.viewModel.getName(index);
 
     switch (shape) {
       case Shape.oval:
@@ -127,6 +128,12 @@ class View {
         this.drawRectangleAtPosition(position, size, color);
         break;
     }
+
+    // draw centered node name
+    this.ctx.font = "20px Arial";
+    this.ctx.fillStyle = "#000000";
+    this.ctx.textAlign = "center";
+    this.ctx.fillText(name, position.x, position.y);
   }
 
   drawConnection(start, end) {

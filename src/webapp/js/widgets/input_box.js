@@ -4,12 +4,14 @@ class InputBox {
     text = "";
     position = {x: 0, y: 0};
     size = {width: 100, height: 20};
+    callback = null;
 
     // show function takes a node to set the position and size of the input box. It also takes a 
     // callback function that is called when the input is finished.
     show(position, callback) {
         console.log(position);
         this.position = position;
+        this.callback = callback;
         this.setInput(true);
     }
 
@@ -38,6 +40,11 @@ class InputBox {
         } else {
             this.text = this.htmlInputBox.value;
             document.body.removeChild(this.htmlInputBox);
+            this.htmlInputBox = null;
+            this.callback(this.text);
+
+            // reset callback
+            this.callback = null;
         }
     }
 

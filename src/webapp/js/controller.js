@@ -40,6 +40,7 @@ class Controller {
       this.viewModel.setNodeSize(node, { width: 150, height: 50 });
       // show input box passing position and callback when edit is finished
       this.view.inputBox.show(position, text => {
+        console.log(node, text);
         this.viewModel.setName(node, text);
         this.view.draw();
       });
