@@ -3,6 +3,7 @@ class View {
   ctx;
   viewModel;
   comntextMenu;
+  inputBox;
 
   constructor(canvas, viewModel) {
     this.canvas = canvas;
@@ -10,7 +11,7 @@ class View {
     this.viewModel = viewModel;
 
     // initialize context menu
-    this.contextMenu = new ContextMenu(this.canvas);
+    this.contextMenu = new ContextMenu();
 
     // add test items to context menu
     this.contextMenu.items.push({
@@ -25,6 +26,9 @@ class View {
         console.log("Add connection");
       }
     });
+
+    // initialize input box
+    this.inputBox = new InputBox(this);
     
     this.resize();
     window.addEventListener("resize", this.resize);

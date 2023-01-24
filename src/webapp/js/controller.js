@@ -31,6 +31,11 @@ class Controller {
       node = this.viewModel.addNode(this.viewModel.getDisplayedLayer());
       this.viewModel.setNodePosition(node, position);
       this.viewModel.setNodeSize(node, { width: 150, height: 50 });
+      // show input box passing position and callback when edit is finished
+      this.view.inputBox.show(position, text => {
+        this.viewModel.setName(node, text);
+        this.view.draw();
+      });
     }
     
     if (event.altKey) {

@@ -4,40 +4,43 @@ class InputBox {
     text = "";
     position = {x: 0, y: 0};
     size = {width: 100, height: 20};
-    backgroundColor = "#eeeeee";
-    textColor = "#000000";
 
-    constructor(position, size) {
+    // show function takes a node to set the position and size of the input box. It also takes a 
+    // callback function that is called when the input is finished.
+    show(position, callback) {
+        console.log(position);
         this.position = position;
-        this.size = size;
+        this.setInput(true);
+        this.htmlInputBox.onblur = () => {
+            this.setInput(false);
+            callback(this.text);
+        };
     }
 
     setInput(hasInput) {
         this.hasInput = hasInput;
         if (hasInput) {
+            // print pos
+            console.log(this.position);
             this.htmlInputBox = document.createElement("input");
             this.htmlInputBox.type = "text";
-            this.htmlInputBox.style.position = "absolute";
+            this.htmlInputBox.style.position = "fixed";
             this.htmlInputBox.style.left = this.position.x + "px";
             this.htmlInputBox.style.top = this.position.y + "px";
             this.htmlInputBox.style.width = this.size.width + "px";
             this.htmlInputBox.style.height = this.size.height + "px";
-            this.htmlInputBox.style.backgroundColor = this.backgroundColor;
-            this.htmlInputBox.style.color = this.textColor;
-            this.htmlInputBox.style.border = "none";
 
-            // end input on enter or escape
+            //end input on enter or escape
             this.htmlInputBox.onkeydown = (event) => {
                 if (event.key == "Enter" || event.key == "Escape") {
-                    this.setInput(false);
+                    this.hasInput = false;
+                    this.text = this.htmlInputBox.value;
+                    document.body.removeChild(this.htmlInputBox);
                 }
             };
             
             document.body.appendChild(this.htmlInputBox);
             this.htmlInputBox.focus();
-        } else {
-            this.text = this.htmlInputBox.value;
-            document.body.removeChild(this.htmlInputBox);
         }
     }
 
