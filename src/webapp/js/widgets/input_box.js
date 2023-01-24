@@ -11,10 +11,6 @@ class InputBox {
         console.log(position);
         this.position = position;
         this.setInput(true);
-        this.htmlInputBox.onblur = () => {
-            this.setInput(false);
-            callback(this.text);
-        };
     }
 
     setInput(hasInput) {
@@ -33,18 +29,19 @@ class InputBox {
             //end input on enter or escape
             this.htmlInputBox.onkeydown = (event) => {
                 if (event.key == "Enter" || event.key == "Escape") {
-                    this.hasInput = false;
-                    this.text = this.htmlInputBox.value;
-                    document.body.removeChild(this.htmlInputBox);
+                    this.setInput(false);
                 }
             };
             
             document.body.appendChild(this.htmlInputBox);
             this.htmlInputBox.focus();
+        } else {
+            this.text = this.htmlInputBox.value;
+            document.body.removeChild(this.htmlInputBox);
         }
     }
 
-    onMouseUp(position) {
+    onMouseDown(position) {
         // only check if the input should be lost
         if (position.x < this.position.x || position.x > this.position.x + this.size.width
             || position.y < this.position.y || position.y > this.position.y + this.size.height)

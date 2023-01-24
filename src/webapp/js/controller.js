@@ -23,6 +23,13 @@ class Controller {
       return;
     }
 
+    // handle input box if has input
+    if (this.view.inputBox.hasInput) {
+      this.view.inputBox.onMouseDown(this.getMousePosition(event));
+      this.view.draw();
+      return;
+    }
+
     const position = this.getMousePosition(event);
     var node = this.view.getNodeAtPosition(position);
 
