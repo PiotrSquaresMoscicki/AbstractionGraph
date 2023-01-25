@@ -50,7 +50,7 @@ class View {
 
     this.drawChildNodesAndConnections(this.viewModel.getDisplayedLayer());
 
-    this.drawLayerIndex();
+    this.drawLayerDepthAndName();
 
     this.contextMenu.draw(this.ctx);
   }
@@ -92,18 +92,46 @@ class View {
   }
 
   // Writes currently displayed layer index in the top left corner of the canvas
-  drawLayerIndex() {
+  drawLayerDepthAndName() {
     this.ctx.font = "20px Arial";
     this.ctx.fillStyle = "#000000";
-    this.ctx.fillText(this.viewModel.getDisplayedLayer(), 10, 30);
+
+    this.ctx.textAlign = "left";
+    // write layer depth
+    const name = this.viewModel.getName(this.viewModel.getDisplayedLayer());
+    this.ctx.fillText(
+      name,
+      10,
+      30
+    );
+
+    const depth = this.viewModel.getLayerDepth(this.viewModel.getDisplayedLayer());
+    this.ctx.fillText(
+      "level " + depth,
+      10,
+      60
+    );
   }
 
   drawNode(index) {
     const position = this.viewModel.getNodePosition(index);
-    const size = this.viewModel.getNodeSize(index);
+    //const size = this.viewModel.getNodeSize(index);
     const shape = this.viewModel.getNodeShape(index);
     const color = this.viewModel.getNodeColor(index);
     const name = this.viewModel.getName(index);
+    
+    // draw centered node name
+    this.ctx.font = this.nodeNameTextSize + "px Arial";
+    // measure text length 
+    const textLength = this.ctx.measureText(name).width;
+    const height = this.nodeNameTextSize + 20;
+    // width should be at least the same as height
+    const width = Math.max(textLength + 20, height);
+    // calculate node size
+    const size = {
+      width: width,
+      height: height
+    };
 
     switch (shape) {
       case Shape.oval:
@@ -113,7 +141,7 @@ class View {
             width: size.width + 8,
             height: size.height + 8
           };
-          this.drawOvalAtPosition(position, hoverSize, Color.blue);
+          this.drawOvalAtPosition(position, hoverSize, Color.black);
         }
         this.drawOvalAtPosition(position, size, color);
         break;
@@ -124,14 +152,11 @@ class View {
             width: size.width + 8,
             height: size.height + 8
           };
-          this.drawRectangleAtPosition(position, hoverSize, Color.blue);
+          this.drawRectangleAtPosition(position, hoverSize, Color.black);
         }
         this.drawRectangleAtPosition(position, size, color);
         break;
     }
-
-    // draw centered node name
-    this.ctx.font = this.nodeNameTextSize + "px Arial";
     this.ctx.fillStyle = "#000000";
     this.ctx.textAlign = "center";
     this.ctx.fillText(name, position.x + 1, position.y + this.nodeNameTextSize / 2 - 2);

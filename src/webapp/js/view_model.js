@@ -89,12 +89,8 @@ class ViewModel extends Model {
     this.positions[index] = { x: 0, y: 0 };
     this.sizes[index] = { width: 0, height: 0 };
     // select random shape and color
-    this.shapes[index] = Object.values(Shape)[
-      Math.floor(Math.random() * Object.values(Shape).length)
-    ];
-    this.colors[index] = Object.values(Color)[
-      Math.floor(Math.random() * Object.values(Color).length)
-    ];
+    this.shapes[index] = Shape.rectangle;
+    this.colors[index] = Color.white;
     return index;
   }
 

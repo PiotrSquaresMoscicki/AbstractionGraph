@@ -155,4 +155,14 @@ class Model {
     // remove node
     this.nodes[index] = null;
   }
+
+  getLayerDepth(index) {
+    let depth = 0;
+    let current = index;
+    while (current !== 0) {
+      current = this.getParent(current);
+      depth++;
+    }
+    return depth;
+  }
 }
