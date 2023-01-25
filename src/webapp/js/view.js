@@ -176,6 +176,12 @@ class View {
     this.ctx.lineTo(endNodePosition.x, endNodePosition.y);
     this.ctx.stroke();
     this.ctx.lineWidth = 1;
+    // draw arrow head in the middle of the line
+    const middle = {
+      x: (startNodePosition.x + endNodePosition.x) / 2,
+      y: (startNodePosition.y + endNodePosition.y) / 2
+    };
+    this.drawArrowHead(startNodePosition, middle);
   }
 
   drawCreatedConnection() {
@@ -196,6 +202,37 @@ class View {
     this.ctx.lineTo(end.x, end.y);
     this.ctx.stroke();
     this.ctx.lineWidth = 1;
+    // draw arrow head in the middle of the line
+    const middle = {
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2
+    };
+    this.drawArrowHead(start, middle);
+  }
+
+  drawArrowHead(start, end) {
+    // calculate angle
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    // calculate arrow head points
+    const arrowHeadPoints = [
+      {
+        x: end.x - 30 * Math.cos(angle - Math.PI / 6),
+        y: end.y - 30 * Math.sin(angle - Math.PI / 6)
+      },
+      {
+        x: end.x - 30 * Math.cos(angle + Math.PI / 6),
+        y: end.y - 30 * Math.sin(angle + Math.PI / 6)
+      }
+    ];
+    // draw arrow head
+    this.ctx.beginPath();
+    this.ctx.moveTo(end.x, end.y);
+    
+    this.ctx.lineTo(arrowHeadPoints[0].x, arrowHeadPoints[0].y);
+    this.ctx.lineTo(arrowHeadPoints[1].x, arrowHeadPoints[1].y);
+    this.ctx.lineTo(end.x, end.y);
+    this.ctx.fillStyle = Color.black;
+    this.ctx.fill();
   }
 
   getNodeAtPosition(position) {
