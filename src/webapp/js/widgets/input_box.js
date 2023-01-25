@@ -23,8 +23,9 @@ class InputBox {
             this.htmlInputBox = document.createElement("input");
             this.htmlInputBox.type = "text";
             this.htmlInputBox.style.position = "fixed";
-            this.htmlInputBox.style.left = this.position.x + "px";
-            this.htmlInputBox.style.top = this.position.y + "px";
+            // center input box around the position
+            this.htmlInputBox.style.left = this.position.x - this.size.width / 2 + "px";
+            this.htmlInputBox.style.top = this.position.y - this.size.height / 2 + "px";
             this.htmlInputBox.style.width = this.size.width + "px";
             this.htmlInputBox.style.height = this.size.height + "px";
 

@@ -54,7 +54,7 @@ class Controller {
       // start making connection if pressed with shift key
       this.viewModel.setCreatedConnectionStartNode(node);
       this.viewModel.setCreatedConnectionEndPosition(position);
-    } else if (node !== null) {
+    } else if (node !== null && this.view.inputBox.hasInput === false) {
       // start dragging node if node is not null
       this.viewModel.setDraggedNode(node);
       const nodePosition = this.viewModel.getNodePosition(node);
