@@ -50,6 +50,36 @@ class ViewModel extends Model {
 
   // getters
 
+  // returns parent unless the index is an input or outpur for the currently displayed layer in 
+  // which case we want to return the currently displayed layer as we want to display the inputs
+  // and outputs of the currently displayed layer as children of the currently displayed layer in
+  //  separate sections from the true children.
+  getParent(index) {
+    // get input nodes of currently displayed layer
+    const inputNodes = this.getInputNodes(this.displayedLayer);
+    // get output nodes of currently displayed layer
+    const outputNodes = this.getOutputNodes(this.displayedLayer);
+    // if the index is an input or output of the currently displayed layer return the currently
+    // displayed layer as parent
+    if (inputNodes.includes(index) || outputNodes.includes(index)) {
+      return this.displayedLayer;
+    }
+    // otherwise return the parent of the index
+    return super.getParent(index);
+  }
+
+  // returns children of the currently displayed layer
+  getChildren(index) {
+    // if the index is the currently displayed layer return the children of the currently displayed 
+    // layer as well as currently displayed layer's input and output nodes
+    if (index === this.displayedLayer) {
+      return super.getChildren(index).concat(this.getInputNodes(index)).concat(this.getOutputNodes(index));
+    }
+    // otherwise return the children of the index
+    return super.getChildren(index);
+  }
+    
+
   getNodePosition(index) {
     return this.positions[index];
   }
