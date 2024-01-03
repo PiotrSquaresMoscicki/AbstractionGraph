@@ -19,10 +19,6 @@
 /debug.log
 /.npm-debug.log*
 
-# Ignore compiled JavaScript files
-*.js
-*.js.map
-
 # Ignore TypeScript declaration files
 *.d.ts
 
