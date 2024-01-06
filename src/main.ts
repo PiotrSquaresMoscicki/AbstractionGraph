@@ -22,6 +22,7 @@ import {
   InternalEvent,
   Perimeter,
   RubberBandHandler,
+  PopupMenuHandler,
 } from '@maxgraph/core';
 import { registerCustomShapes } from './custom-shapes';
 
@@ -32,6 +33,14 @@ const initializeGraph = (container: HTMLElement) => {
   const graph = new Graph(container);
   graph.setPanning(true); // Use mouse right button for panning
   new RubberBandHandler(graph); // Enables rubber band selection
+  var popupMenu = new PopupMenuHandler(graph); // Enables popup menu
+  popupMenu.factoryMethod = (handler, cell, me) => {
+    console.log('popup menu is enabled dupa');
+    // add 3 dummy items
+    popupMenu.addItem('Item 1', null, () => {
+      alert('Item 1');
+    });
+  };
 
   // shapes and styles
   registerCustomShapes();
