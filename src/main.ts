@@ -23,6 +23,7 @@ import {
   Perimeter,
   RubberBandHandler,
   PopupMenuHandler,
+  CellEditorHandler,
 } from '@maxgraph/core';
 import { registerCustomShapes } from './custom-shapes';
 
@@ -33,6 +34,14 @@ const initializeGraph = (container: HTMLElement) => {
   const graph = new Graph(container);
   graph.setPanning(true); // Use mouse right button for panning
   graph.setConnectable(true); // Enables new connections in the graph
+  var cellEditor = new CellEditorHandler(graph); // Enables in-place editing
+  // edit cell text on double click
+  graph.addListener(InternalEvent.DOUBLE_CLICK, (sender, evt) => {
+    const cell = evt.getProperty('cell');
+    if (cell != null) {
+      cellEditor.startEditing(cell);
+    }
+  });
   new RubberBandHandler(graph); // Enables rubber band selection
   var popupMenu = new PopupMenuHandler(graph); // Enables popup menu
   popupMenu.factoryMethod = (handler, cell, me) => {
