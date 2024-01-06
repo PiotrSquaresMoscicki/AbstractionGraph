@@ -32,6 +32,7 @@ const initializeGraph = (container: HTMLElement) => {
 
   const graph = new Graph(container);
   graph.setPanning(true); // Use mouse right button for panning
+  graph.setConnectable(true); // Enables new connections in the graph
   new RubberBandHandler(graph); // Enables rubber band selection
   var popupMenu = new PopupMenuHandler(graph); // Enables popup menu
   popupMenu.factoryMethod = (handler, cell, me) => {
