@@ -1,140 +1,268 @@
-/*
-Copyright 2022-present The maxGraph project Contributors
+// Abstraction graph is an app that allows users to create graphs consisting of nodes and edges 
+// with ability to manually cluster nodes into groups that represent abstractions. This way the 
+// graph can become more readable and easier to understand.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+// Example:
+// We can tty and represent tht dependencies between parts of the car (engine, wheels, body) as a
+// graph. The car itself is a node that contains a graph of its parts. The parts are nodes that
+// contain a graph of their components. The components are nodes that contain a graph of their 
+// smaller components and so on. The smallest components are nodes that do not contain any graphs.
+// So the graph would look like this:
+// Car
+//   Engine
+//     Pistons
+//       Piston Rings
+//         Piston Ring 1
+//         Piston Ring 2
+//       Piston Rod
+//         Piston Rod 1
+//         Piston Rod 2
+//     Crankshaft
+//       Crankshaft 1
+//       Crankshaft 2
+//   Wheels
+//     Wheel 1
+//     Wheel 2
+//   Body
+//     Door 1
+//     Door 2
+//     Roof
+//       Roof Window
+//       Roof Window Frame
+//       Roof Window Frame Glass
+//     Trunk
+//       Trunk Door
+//       Trunk Door Handle
+//       Trunk Door Lock
+//  Frame
+//    Engine Mount
+//    Wheel Mount
+//    Body Mount
+// Using a tree structure we can only represent "contains" relationships. Using a graph we can
+// represent "contains" and "is connected to" relationships. This way we can represent dependencies
+// between parts of the car. For example the engine is connected to the frame using engine mounts.
+// The wheels are connected to the frame using wheel mounts. The body is connected to the frame
+// using body mounts. The engine is connected to the wheels using the crankshaft.
 
-    http://www.apache.org/licenses/LICENSE-2.0
+// Definitions:
+// Graph - a set of nodes and connections between them
+// Connection - connection between two nodes
+// Node - edge of the graph that can be connected to other nodes but also contains an inner graph
+// Inner Graph - a graph that is contained within a node. Node containing a graph represents an 
+//    abstraction of the inner graph. Nodes from the inner graph can be connected to nodes outside
+//    of the inner graph (siblings of the node containing the inner graph)
+// Abstraction - a node that contains an inner graph that is not empty
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// The app uses model, view, view model (MVVM) architecture.
 
-import '@maxgraph/core/css/common.css';
-import './style.css';
-import {
-  Client,
-  Graph,
-  InternalEvent,
-  Perimeter,
-  RubberBandHandler,
-  PopupMenuHandler,
-  CellEditorHandler,
-} from '@maxgraph/core';
-import { registerCustomShapes } from './custom-shapes';
+class Rectangle {
+  constructor(x: number, y: number, width: number, height: number) {
+    this.x = x;
+    this.y = y; 
+    this.width = width;
+    this.height = height;
+  }
 
-const initializeGraph = (container: HTMLElement) => {
-  // Disables the built-in context menu
-  InternalEvent.disableContextMenu(container);
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
-  const graph = new Graph(container);
-  graph.setPanning(true); // Use mouse right button for panning
-  graph.setConnectable(true); // Enables new connections in the graph
-  var cellEditor = new CellEditorHandler(graph); // Enables in-place editing
-  // edit cell text on double click
-  graph.addListener(InternalEvent.DOUBLE_CLICK, (sender, evt) => {
-    const cell = evt.getProperty('cell');
-    if (cell != null) {
-      cellEditor.startEditing(cell);
+class Connection { 
+  constructor(from: number, to: number) {
+    this.from = from;
+    this.to = to;
+  }
+
+  from: number;
+  to: number;
+}
+
+class Model {
+  // Accessors
+  getRoot(): number {
+    return 0;
+  }
+
+  getName(index: number): string {
+    return this.names.get(index) || '';
+  }
+
+  getRectangle(index: number): Rectangle {
+    return this.rectangles.get(index) || new Rectangle(0, 0, 0, 0);
+  }
+
+  getChildren(index: number): number[] {
+    return this.children.get(index) || [];
+  }
+
+  getOutgoingConnections(index: number): Connection[] {
+    return this.connections.filter(connection => connection.from === index);
+  }
+
+  getIncomingConnections(index: number): Connection[] {
+    return this.connections.filter(connection => connection.to === index);
+  }
+
+  // Mutators
+  createNode(index: number = -1): number {
+    if (this.nodes.indexOf(index) !== -1 || index >= this.indexGenerator) {
+      throw new Error('Index is already used or is greater than the index generator');
     }
-  });
-  new RubberBandHandler(graph); // Enables rubber band selection
-  var popupMenu = new PopupMenuHandler(graph); // Enables popup menu
-  popupMenu.factoryMethod = (handler, cell, me) => {
-    console.log('popup menu is enabled dupa');
-    // add 3 dummy items
-    popupMenu.addItem('Item 1', null, () => {
-      alert('Item 1');
+    if (index === -1) {
+      index = this.indexGenerator++;
+    }
+    this.nodes.push(index);
+    return index;
+  }
+
+  destroyNode(index: number): void {
+    this.nodes = this.nodes.filter(node => node !== index);
+    this.names.delete(index);
+    this.rectangles.delete(index);
+    this.children.delete(index);
+    this.connections = this.connections.filter(connection => connection.from !== index && connection.to !== index);
+  }
+
+  setName(index: number, name: string): void {
+    this.names.set(index, name);
+  }
+
+  setRectangle(index: number, rectangle: Rectangle): void {
+    this.rectangles.set(index, rectangle);
+  }
+
+  addChild(parent: number, child: number): void {
+    const children = this.children.get(parent) || [];
+    children.push(child);
+    this.children.set(parent, children);
+  }
+
+  removeChild(parent: number, child: number): void {
+    const children = this.children.get(parent) || [];
+    const index = children.indexOf(child);
+    if (index !== -1) {
+      children.splice(index, 1);
+    }
+  }
+
+  addConnection(from: number, to: number): void {
+    this.connections.push(new Connection(from, to));
+  }
+
+  removeConnection(from: number, to: number): void {
+    this.connections = this.connections.filter(connection => connection.from !== from || connection.to !== to);
+  }
+
+  // Private members
+  private indexGenerator: number = 1;
+  private nodes: number[] = [];
+  private names: Map<number, string> = new Map<number, string>();
+  private rectangles: Map<number, Rectangle> = new Map<number, Rectangle>();
+  private children: Map<number, number[]> = new Map<number, number[]>();
+  private connections: Connection[] = [];
+}
+
+class ViewModel {
+  constructor(model: Model) {
+    this.model = model;
+  }
+
+  // Accessors
+  getModel(): Model {
+    return this.model;
+  }
+
+  getDisplayedParent(): number {
+    return this.displayedParent;
+  }
+
+  // Mutators
+  setDisplayedParent(index: number): void {
+    this.displayedParent = index;
+  }
+
+  // Private members
+  private model: Model;
+  private displayedParent: number = 0;
+}
+
+class View {
+  constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
+    this.viewModel = viewModel;
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    // log size
+    console.log('canvas width: ' + canvas.width);
+    console.log('canvas height: ' + canvas.height);
+  }
+
+  draw(): void {
+    // fill with white
+    this.ctx.fillStyle = 'white';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // get displayed parent
+    const displayedParent = this.viewModel.getDisplayedParent();
+    // get children
+    const children = this.viewModel.getModel().getChildren(displayedParent);
+    // for each child draw its node and outgoing connections
+    children.forEach(child => {
+      this.drawNode(child);
+      this.viewModel.getModel().getOutgoingConnections(child).forEach(connection => this.drawConnection(connection));
     });
-  };
+  }
 
-  // shapes and styles
-  registerCustomShapes();
-  // create a dedicated style for "ellipse" to share properties
-  graph.getStylesheet().putCellStyle('myEllipse', {
-    perimeter: Perimeter.EllipsePerimeter,
-    shape: 'ellipse',
-    verticalAlign: 'top',
-    verticalLabelPosition: 'bottom',
-  });
+  // Private methods
+  drawNode(index: number): void {
+    // get rectangle
+    const rectangle = this.viewModel.getModel().getRectangle(index);
+    // draw rectangle
+    this.ctx.fillStyle = 'black';
+    this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+    // get name
+    const name = this.viewModel.getModel().getName(index);
+    // draw name
+    this.ctx.fillStyle = 'black';
+    this.ctx.font = '10px Arial';
+    this.ctx.fillText(name, rectangle.width, rectangle.height);
+  }
 
-  // Gets the default parent for inserting new cells. This
-  // is normally the first child of the root (ie. layer 0).
-  const parent = graph.getDefaultParent();
+  drawConnection(connection: Connection): void {
+    // get from rectangle
+    const fromRectangle = this.viewModel.getModel().getRectangle(connection.from);
+    // get to rectangle
+    const toRectangle = this.viewModel.getModel().getRectangle(connection.to);
+    // draw line
+    this.ctx.strokeStyle = 'black';
+    this.ctx.beginPath();
+    this.ctx.moveTo(fromRectangle.x + fromRectangle.width / 2, fromRectangle.y + fromRectangle.height / 2);
+    this.ctx.lineTo(toRectangle.x + toRectangle.width / 2, toRectangle.y + toRectangle.height / 2);
+    this.ctx.stroke();
+  }
 
-  // Adds cells to the model in a single step
-  graph.batchUpdate(() => {
-    // use the legacy insertVertex method
-    const vertex01 = graph.insertVertex(
-      parent,
-      null,
-      'a regular rectangle',
-      10,
-      10,
-      100,
-      100
-    );
-    const vertex02 = graph.insertVertex(
-      parent,
-      null,
-      'a regular ellipse',
-      350,
-      90,
-      50,
-      50,
-      {
-        baseStyleNames: ['myEllipse'],
-        fillColor: 'orange',
-      }
-    );
-    // use the legacy insertEdge method
-    graph.insertEdge(parent, null, 'an orthogonal style edge', vertex01, vertex02, {
-      // TODO cannot use constants.EDGESTYLE.ORTHOGONAL
-      // TS2748: Cannot access ambient const enums when the '--isolatedModules' flag is provided.
-      // See https://github.com/maxGraph/maxGraph/issues/205
-      edgeStyle: 'orthogonalEdgeStyle',
-      rounded: true,
-    });
+  // Private members
+  private viewModel: ViewModel;
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+}
 
-    // insert vertex using custom shapes using the new insertVertex method
-    const vertex11 = graph.insertVertex({
-      parent,
-      value: 'a custom rectangle',
-      position: [20, 200],
-      size: [100, 100],
-      style: { shape: 'customRectangle' },
-    });
-    // use the new insertVertex method using position and size parameters
-    const vertex12 = graph.insertVertex({
-      parent,
-      value: 'a custom ellipse',
-      x: 150,
-      y: 350,
-      width: 70,
-      height: 70,
-      style: {
-        baseStyleNames: ['myEllipse'],
-        shape: 'customEllipse',
-      },
-    });
-    // use the new insertEdge method
-    graph.insertEdge({
-      parent,
-      value: 'another edge',
-      source: vertex11,
-      target: vertex12,
-      style: { endArrow: 'block' },
-    });
-  });
-};
+var model = new Model();
+var viewModel = new ViewModel(model);
+const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+var view = new View(viewModel, canvas);
 
-// display the maxGraph version in the footer
-const footer = <HTMLElement>document.querySelector('footer');
-footer.innerText = `Built with maxGraph ${Client.VERSION}`;
+// create sample graph
+const root = model.getRoot();
+const engine = model.createNode();
+model.setName(engine, 'Engine');
+model.setRectangle(engine, new Rectangle(0, 0, 100, 50));
+model.addChild(root, engine);
 
-// Creates the graph inside the given container
-initializeGraph(<HTMLElement>document.querySelector('#graph-container'));
+// set root as current displayed parent
+viewModel.setDisplayedParent(root);
+
+// draw
+view.draw();
