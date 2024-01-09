@@ -223,9 +223,12 @@ class View {
     // get name
     const name = this.viewModel.getModel().getName(index);
     // draw name
-    this.ctx.fillStyle = 'black';
-    this.ctx.font = '10px Arial';
-    this.ctx.fillText(name, rectangle.width, rectangle.height);
+    const textSize = 15;
+    this.ctx.fillStyle = 'red';
+    this.ctx.font = textSize + 'px Arial';
+    const textPosx = rectangle.x + rectangle.width / 2 - this.ctx.measureText(name).width / 2;
+    const textPosy = rectangle.y + rectangle.height / 2 + 5;
+    this.ctx.fillText(name, textPosx, textPosy);
   }
 
   drawConnection(connection: Connection): void {
@@ -258,7 +261,7 @@ var view = new View(viewModel, canvas);
 const root = model.getRoot();
 const engine = model.createNode();
 model.setName(engine, 'Engine');
-model.setRectangle(engine, new Rectangle(0, 0, 100, 50));
+model.setRectangle(engine, new Rectangle(450, 450, 100, 50));
 model.addChild(root, engine);
 
 // set root as current displayed parent
