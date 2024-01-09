@@ -264,6 +264,27 @@ model.setName(engine, 'Engine');
 model.setRectangle(engine, new Rectangle(450, 450, 100, 50));
 model.addChild(root, engine);
 
+const wheels = model.createNode();
+model.setName(wheels, 'Wheels');
+model.setRectangle(wheels, new Rectangle(450, 50, 100, 50));
+model.addChild(root, wheels);
+
+const body = model.createNode();
+model.setName(body, 'Body');
+model.setRectangle(body, new Rectangle(50, 50, 100, 50));
+model.addChild(root, body);
+
+const underbody = model.createNode();
+model.setName(underbody, 'Underbody');
+model.setRectangle(underbody, new Rectangle(250, 250, 100, 50));
+model.addChild(root, underbody);
+
+// add connections
+model.addConnection(engine, underbody);
+model.addConnection(wheels, underbody);
+model.addConnection(body, underbody);
+
+
 // set root as current displayed parent
 viewModel.setDisplayedParent(root);
 
