@@ -217,14 +217,15 @@ class View {
   drawNode(index: number): void {
     // get rectangle
     const rectangle = this.viewModel.getModel().getRectangle(index);
-    // draw rectangle
-    this.ctx.fillStyle = 'black';
-    this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+    // draw rectangle frame
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeStyle = 'black';
+    this.ctx.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     // get name
     const name = this.viewModel.getModel().getName(index);
     // draw name
     const textSize = 15;
-    this.ctx.fillStyle = 'red';
+    this.ctx.fillStyle = 'black';
     this.ctx.font = textSize + 'px Arial';
     const textPosx = rectangle.x + rectangle.width / 2 - this.ctx.measureText(name).width / 2;
     const textPosy = rectangle.y + rectangle.height / 2 + 5;
@@ -241,16 +242,17 @@ class View {
     const fromConnectionPoint = this.getConnectionPoint(fromRectangle, toRectangle);
     // get to edge
     const toConnectionPoint = this.getConnectionPoint(toRectangle, fromRectangle);
-    // draw red line
-    this.ctx.strokeStyle = 'red';
+    // draw black line
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeStyle = 'black';
     this.ctx.beginPath();
     this.ctx.moveTo(fromConnectionPoint.x, fromConnectionPoint.y);
     this.ctx.lineTo(toConnectionPoint.x, toConnectionPoint.y);
     this.ctx.stroke();
     // draw arrow (filled triangle with proper orientation)
     const angle = Math.atan2(toConnectionPoint.y - fromConnectionPoint.y, toConnectionPoint.x - fromConnectionPoint.x);
-    const arrowLength = 10;
-    this.ctx.fillStyle = 'red';
+    const arrowLength = 12;
+    this.ctx.fillStyle = 'black';
     this.ctx.beginPath();
     this.ctx.moveTo(toConnectionPoint.x, toConnectionPoint.y);
     this.ctx.lineTo(toConnectionPoint.x - arrowLength * Math.cos(angle - Math.PI / 6), toConnectionPoint.y - arrowLength * Math.sin(angle - Math.PI / 6));
