@@ -247,6 +247,16 @@ class View {
     this.ctx.moveTo(fromConnectionPoint.x, fromConnectionPoint.y);
     this.ctx.lineTo(toConnectionPoint.x, toConnectionPoint.y);
     this.ctx.stroke();
+    // draw arrow (filled triangle with proper orientation)
+    const angle = Math.atan2(toConnectionPoint.y - fromConnectionPoint.y, toConnectionPoint.x - fromConnectionPoint.x);
+    const arrowLength = 10;
+    this.ctx.fillStyle = 'red';
+    this.ctx.beginPath();
+    this.ctx.moveTo(toConnectionPoint.x, toConnectionPoint.y);
+    this.ctx.lineTo(toConnectionPoint.x - arrowLength * Math.cos(angle - Math.PI / 6), toConnectionPoint.y - arrowLength * Math.sin(angle - Math.PI / 6));
+    this.ctx.lineTo(toConnectionPoint.x - arrowLength * Math.cos(angle + Math.PI / 6), toConnectionPoint.y - arrowLength * Math.sin(angle + Math.PI / 6));
+    this.ctx.lineTo(toConnectionPoint.x, toConnectionPoint.y);
+    this.ctx.fill();
   }
 
   getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
