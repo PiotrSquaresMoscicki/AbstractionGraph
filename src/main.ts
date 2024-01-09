@@ -236,12 +236,37 @@ class View {
     const fromRectangle = this.viewModel.getModel().getRectangle(connection.from);
     // get to rectangle
     const toRectangle = this.viewModel.getModel().getRectangle(connection.to);
-    // draw line
-    this.ctx.strokeStyle = 'black';
+    // connection should start and end on the edges of rectangles
+    // get from edge
+    const fromConnectionPoint = this.getConnectionPoint(fromRectangle, toRectangle);
+    // get to edge
+    const toConnectionPoint = this.getConnectionPoint(toRectangle, fromRectangle);
+    // draw red line
+    this.ctx.strokeStyle = 'red';
     this.ctx.beginPath();
-    this.ctx.moveTo(fromRectangle.x + fromRectangle.width / 2, fromRectangle.y + fromRectangle.height / 2);
-    this.ctx.lineTo(toRectangle.x + toRectangle.width / 2, toRectangle.y + toRectangle.height / 2);
+    this.ctx.moveTo(fromConnectionPoint.x, fromConnectionPoint.y);
+    this.ctx.lineTo(toConnectionPoint.x, toConnectionPoint.y);
     this.ctx.stroke();
+  }
+
+  getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
+    // If vertical distance is greater than horizontal distance then connection should start or end
+    // on the top or bottom edge. Return the middle point of the edge.
+    if (Math.abs(fromRectangle.y - toRectangle.y) > Math.abs(fromRectangle.x - toRectangle.x)) {
+      if (fromRectangle.y < toRectangle.y) {
+        return { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y + fromRectangle.height };
+      } else {
+        return { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y };
+      }
+    }
+    else
+    {
+      if (fromRectangle.x < toRectangle.x) {
+        return { x: fromRectangle.x + fromRectangle.width, y: fromRectangle.y + fromRectangle.height / 2 };
+      } else {
+        return { x: fromRectangle.x, y: fromRectangle.y + fromRectangle.height / 2 };
+      }
+    }
   }
 
   // Private members
@@ -276,7 +301,7 @@ model.addChild(root, body);
 
 const underbody = model.createNode();
 model.setName(underbody, 'Underbody');
-model.setRectangle(underbody, new Rectangle(250, 250, 100, 50));
+model.setRectangle(underbody, new Rectangle(450, 250, 100, 50));
 model.addChild(root, underbody);
 
 // add connections
