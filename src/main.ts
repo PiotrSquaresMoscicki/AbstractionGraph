@@ -108,7 +108,8 @@ class Model {
   }
 
   getChildren(index: number): number[] {
-    return this.children.get(index) || [];
+    // return copy of children array
+    return this.children.get(index)?.slice() || [];
   }
 
   getOutgoingConnections(index: number): Connection[] {
@@ -314,11 +315,16 @@ class View implements IModelObserver {
     // get displayed parent
     const displayedParent = this.viewModel.getDisplayedParent();
     // get children
-    const children = this.viewModel.getModel().getChildren(displayedParent);
     // for each child draw its node and outgoing connections
+    // draw nodes in rvers order so that the first node is drawn on top of the last node
+    const children = this.viewModel.getModel().getChildren(displayedParent).reverse();
+    children.forEach(child => {
+      this.viewModel.getModel().getOutgoingConnections(child).forEach(connection => {
+        this.drawConnection(connection);
+      });
+    });
     children.forEach(child => {
       this.drawNode(child);
-      this.viewModel.getModel().getOutgoingConnections(child).forEach(connection => this.drawConnection(connection));
     });
   }
 
@@ -326,8 +332,12 @@ class View implements IModelObserver {
   drawNode(index: number): void {
     // get rectangle
     const rectangle = this.viewModel.getModel().getRectangle(index);
+    // fill rect with white color
+    this.ctx.fillStyle = 'white';
+    this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     // draw rectangle frame
     this.ctx.lineWidth = 1;
+    
     this.ctx.strokeStyle = 'black';
     this.ctx.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     // get name
@@ -346,6 +356,11 @@ class View implements IModelObserver {
     const fromRectangle = this.viewModel.getModel().getRectangle(connection.from);
     // get to rectangle
     const toRectangle = this.viewModel.getModel().getRectangle(connection.to);
+    // don't draw if rectangles are overlapping
+    if (fromRectangle.x + fromRectangle.width >= toRectangle.x && fromRectangle.y + fromRectangle.height >= toRectangle.y
+        && fromRectangle.x <= toRectangle.x + toRectangle.width && fromRectangle.y <= toRectangle.y + toRectangle.height) {
+      return;
+    }
     // connection should start and end on the edges of rectangles
     // get from edge
     const fromConnectionPoint = this.getConnectionPoint(fromRectangle, toRectangle);
@@ -371,23 +386,53 @@ class View implements IModelObserver {
   }
 
   getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
-    // If vertical distance is greater than horizontal distance then connection should start or end
-    // on the top or bottom edge. Return the middle point of the edge.
-    if (Math.abs(fromRectangle.y - toRectangle.y) > Math.abs(fromRectangle.x - toRectangle.x)) {
-      if (fromRectangle.y < toRectangle.y) {
-        return { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y + fromRectangle.height };
-      } else {
-        return { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y };
-      }
+    // get center of from rectangle
+    const fromCenter = { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y + fromRectangle.height / 2 };
+    // get center of to rectangle
+    const toCenter = { x: toRectangle.x + toRectangle.width / 2, y: toRectangle.y + toRectangle.height / 2 };
+    // get intersection point of line from fromCenter to toCenter and fromRectangle
+    const connectionLine = { startx: fromCenter.x, starty: fromCenter.y, endx: toCenter.x, endy: toCenter.y };
+    const fromRectangleTop = { startx: fromRectangle.x, starty: fromRectangle.y, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y };
+    const fromRectangleBottom = { startx: fromRectangle.x, starty: fromRectangle.y + fromRectangle.height, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y + fromRectangle.height };
+    const fromRectangleLeft = { startx: fromRectangle.x, starty: fromRectangle.y, endx: fromRectangle.x, endy: fromRectangle.y + fromRectangle.height };
+    const fromRectangleRight = { startx: fromRectangle.x + fromRectangle.width, starty: fromRectangle.y, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y + fromRectangle.height };
+
+    const intersectionTop = this.getIntersection(connectionLine, fromRectangleTop);
+    const intersectionBottom = this.getIntersection(connectionLine, fromRectangleBottom);
+    const intersectionLeft = this.getIntersection(connectionLine, fromRectangleLeft);
+    const intersectionRight = this.getIntersection(connectionLine, fromRectangleRight);
+
+    // find intersection that is closest to toCenter
+    const intersections = [intersectionTop, intersectionBottom, intersectionLeft, intersectionRight];
+    const distances = intersections.map(intersection => intersection === null 
+      ? Infinity 
+      : Math.sqrt(Math.pow(toCenter.x - intersection.x, 2) + Math.pow(toCenter.y - intersection.y, 2)));
+    const minDistance = Math.min(...distances);
+    const index = distances.indexOf(minDistance);
+    const intersection = intersections[index] as { x: number, y: number };
+    return intersection;
+  }
+
+  getIntersection(line1: { startx: number, starty: number, endx: number, endy: number }, 
+      line2: { startx: number, starty: number, endx: number, endy: number }): { x: number, y: number } | null {
+    const denominator = (line2.endy - line2.starty) * (line1.endx - line1.startx) - (line2.endx - line2.startx) * (line1.endy - line1.starty);
+    if (denominator === 0) {
+      return null;
     }
-    else
-    {
-      if (fromRectangle.x < toRectangle.x) {
-        return { x: fromRectangle.x + fromRectangle.width, y: fromRectangle.y + fromRectangle.height / 2 };
-      } else {
-        return { x: fromRectangle.x, y: fromRectangle.y + fromRectangle.height / 2 };
-      }
+    var a = line1.starty - line2.starty;
+    var b = line1.startx - line2.startx;
+    const numerator1 = (line2.endx - line2.startx) * a - (line2.endy - line2.starty) * b;
+    const numerator2 = (line1.endx - line1.startx) * a - (line1.endy - line1.starty) * b;
+    a = numerator1 / denominator;
+    b = numerator2 / denominator;
+    // if sections are not intersecting then return null
+    if (a < 0 || a > 1 || b < 0 || b > 1) {
+      return null;
     }
+    // calculate intersection point
+    const x = line1.startx + a * (line1.endx - line1.startx);
+    const y = line1.starty + a * (line1.endy - line1.starty);
+    return { x: x, y: y };
   }
 
   // Generic function for controlling active controller. Takes lambda as a parameter and calls it 
