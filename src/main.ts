@@ -79,19 +79,18 @@ class Connection {
   to: number;
 }
 
-class IModelObserver {
-  onModelChanged(): void {}
+interface IModelObserver {
+  onModelChanged(): void
 
-  onNodeCreated(_index: number): void {}
-  onNodeDestroyed(_index: number): void {}
-  onNodeNameChanged(_index: number): void {}
-  onNodeRectangleChanged(_index: number): void {}
-  onNodeChildAdded(_parent: number, _child: number): void {}
-  onNodeChildRemoved(_parent: number, _child: number): void {}
-  onConnectionAdded(_from: number, _to: number): void {}
-  onConnectionRemoved(_from: number, _to: number): void {}
+  onNodeCreated(_index: number): void
+  onNodeDestroyed(_index: number): void
+  onNodeNameChanged(_index: number): void
+  onNodeRectangleChanged(_index: number): void
+  onNodeChildAdded(_parent: number, _child: number): void
+  onNodeChildRemoved(_parent: number, _child: number): void
+  onConnectionAdded(_from: number, _to: number): void
+  onConnectionRemoved(_from: number, _to: number): void
 }
-
 
 class Model {
   // Accessors
@@ -204,6 +203,11 @@ class Model {
   private connections: Connection[] = [];
 }
 
+interface IViewModelObserver extends IModelObserver {
+  onDisplayedParentChanged(): void
+  onHoveredNodeChanged(): void
+}
+
 class ViewModel {
   constructor(model: Model) {
     this.model = model;
@@ -218,21 +222,82 @@ class ViewModel {
     return this.displayedParent;
   }
 
+  getHoveredNode(): number {
+    return this.hoveredNode;
+  }
+
   // Mutators
+  registerObserver(observer: IViewModelObserver): void {
+    this.observers.push(observer);
+    this.model.registerObserver(observer);
+  }
+
+  unregisterObserver(observer: IViewModelObserver): void {
+    this.observers = this.observers.filter(item => item !== observer);
+    this.model.unregisterObserver(observer);
+  }
+
   setDisplayedParent(index: number): void {
     this.displayedParent = index;
+    this.observers.forEach(observer => observer.onDisplayedParentChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
+  setHoveredNode(index: number): void {
+    this.hoveredNode = index;
+    this.observers.forEach(observer => observer.onHoveredNodeChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
   }
 
   // Private members
   private model: Model;
+  private observers: IViewModelObserver[] = [];
   private displayedParent: number = 0;
+  private hoveredNode: number = -1;
 }
 
 class IViewController {
   isActive(): boolean { return false; }
+  onOtherControllerActivated(): void {}
   onMouseDown(_event: MouseEvent): void {}
   onMouseMove(_event: MouseEvent): void {}
   onMouseUp(_event: MouseEvent): void {}
+}
+
+class NodeHoverController implements IViewController {
+  constructor(viewModel: ViewModel) {
+    this.viewModel = viewModel;
+  }
+
+  // IViewController
+  isActive(): boolean { return false; }
+
+  onOtherControllerActivated(): void {
+    this.viewModel.setHoveredNode(-1);
+  }
+
+  onMouseDown(_event: MouseEvent): void {}
+
+  onMouseMove(event: MouseEvent): void {
+    // if mouse is hovered over a node then set it as hovered node
+    const displayedParent = this.viewModel.getDisplayedParent();
+    const children = this.viewModel.getModel().getChildren(displayedParent);
+    const rectangles = children.map(child => this.viewModel.getModel().getRectangle(child));
+    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
+        && event.clientX <= rectangle.x + rectangle.width 
+        && event.clientY >= rectangle.y 
+        && event.clientY <= rectangle.y + rectangle.height);
+    if (index !== -1) {
+      this.viewModel.setHoveredNode(children[index]);
+    } else {
+      this.viewModel.setHoveredNode(-1);
+    }
+  }
+
+  onMouseUp(_event: MouseEvent): void {}
+
+  // Private members
+  private viewModel: ViewModel;
 }
 
 class NodeMoveController {
@@ -242,6 +307,8 @@ class NodeMoveController {
 
   // IViewController
   isActive(): boolean { return this.active; }
+
+  onOtherControllerActivated(): void {}
 
   onMouseDown(_event: MouseEvent): void {}
 
@@ -290,17 +357,18 @@ class NodeMoveController {
   private startingRectangle: Rectangle = new Rectangle(0, 0, 0, 0);
 }
 
-class View implements IModelObserver {
+class View implements IViewModelObserver {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     
     // register as observer
-    this.viewModel.getModel().registerObserver(this as IModelObserver);
+    this.viewModel.registerObserver(this as IViewModelObserver);
 
     // create controllers
     this.controllers.push(new NodeMoveController(this.viewModel));
+    this.controllers.push(new NodeHoverController(this.viewModel));
 
     // add event listeners
     canvas.addEventListener('mousedown', (event) => this.onEvent(controller => controller.onMouseDown(event)));
@@ -335,10 +403,13 @@ class View implements IModelObserver {
     // fill rect with white color
     this.ctx.fillStyle = 'white';
     this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
-    // draw rectangle frame
-    this.ctx.lineWidth = 1;
+    // draw rectangle frame (red frame for hovered node)
+    if (index === this.viewModel.getHoveredNode()) {
+      this.ctx.strokeStyle = 'red';
+    } else {
+      this.ctx.strokeStyle = 'black';
+    }
     
-    this.ctx.strokeStyle = 'black';
     this.ctx.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     // get name
     const name = this.viewModel.getModel().getName(index);
@@ -454,12 +525,18 @@ class View implements IModelObserver {
       lambda(controller);
       if (controller.isActive()) {
         this.activeController = controller;
+        // notify other controllers that one of them became active
+        this.controllers.forEach(otherController => {
+          if (otherController !== controller) {
+            otherController.onOtherControllerActivated();
+          }
+        });
         break;
       }
     }
   }
 
-  // IModelObserver
+  // IViewModelObserver
   onModelChanged(): void {
     this.draw();
   }
@@ -472,7 +549,9 @@ class View implements IModelObserver {
   onNodeChildRemoved(_parent: number, _child: number): void {}
   onConnectionAdded(_from: number, _to: number): void {}
   onConnectionRemoved(_from: number, _to: number): void {}
-  // end IModelObserver
+  onDisplayedParentChanged(): void {}
+  onHoveredNodeChanged(): void {}
+  // end IViewModelObserver
 
   // Private members
   private viewModel: ViewModel;
