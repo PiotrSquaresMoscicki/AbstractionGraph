@@ -429,9 +429,10 @@ class ViewStyle {
   constructor() {
     // dark theme using vs code dark theme colors
     this.backgroundColor = '#1e1e1e';
-    this.gridColor = '#2d2d30';
+    this.smallStepGridColor = '#26262d';
+    this.bigStepGridColor = '#26262d';
     this.nodeColor = '#252526';
-    this.nodeBorderColor = '#37373d';
+    this.nodeBorderColor = '#4e4e52';
     this.nodeHoveredBorderColor = '#007acc';
     this.nodeTextColor = '#c0c0c0';
     this.connectionColor = '#c0c0c0';
@@ -442,7 +443,8 @@ class ViewStyle {
   }
 
   backgroundColor: string;
-  gridColor: string;
+  smallStepGridColor: string;
+  bigStepGridColor: string;
   nodeColor: string;
   nodeBorderColor: string;
   nodeHoveredBorderColor: string;
@@ -518,30 +520,41 @@ class View implements IViewModelObserver {
     const viewportPosition = this.viewModel.getViewPortPosition();
     // get grid size
     const gridSize = this.viewModel.getGridSize();
-    // calculate offset
-    const offsetX = viewportPosition.x % gridSize;
-    const offsetY = viewportPosition.y % gridSize;
-    // calculate number of lines
-    const numberOfLinesX = Math.floor(this.canvas.width / gridSize) + 1;
-    const numberOfLinesY = Math.floor(this.canvas.height / gridSize) + 1;
-    // draw vertical lines
-    this.ctx.strokeStyle = this.style.gridColor;
+    // get canvas size
+    const canvasWidth = this.canvas.width;
+    const canvasHeight = this.canvas.height;
+    // get starting position of grid
+    const startingPosition = { x: viewportPosition.x % gridSize, y: viewportPosition.y % gridSize };
+    // draw small step grid
+    this.ctx.strokeStyle = this.style.smallStepGridColor;
     this.ctx.lineWidth = 1;
-    this.ctx.beginPath();
-    for (let i = 0; i < numberOfLinesX; i++) {
-      const x = i * gridSize - offsetX;
+    for (var x = startingPosition.x; x < canvasWidth; x += gridSize) {
+      this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, this.canvas.height);
+      this.ctx.lineTo(x, canvasHeight);
+      this.ctx.stroke();
     }
-    this.ctx.stroke();
-    // draw horizontal lines
-    this.ctx.beginPath();
-    for (let i = 0; i < numberOfLinesY; i++) {
-      const y = i * gridSize - offsetY;
+    for (var y = startingPosition.y; y < canvasHeight; y += gridSize) {
+      this.ctx.beginPath();
       this.ctx.moveTo(0, y);
-      this.ctx.lineTo(this.canvas.width, y);
+      this.ctx.lineTo(canvasWidth, y);
+      this.ctx.stroke();
     }
-    this.ctx.stroke();
+    // draw big step grid
+    this.ctx.strokeStyle = this.style.bigStepGridColor;
+    this.ctx.lineWidth = 2;
+    for (var x = startingPosition.x; x < canvasWidth; x += gridSize * 5) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, canvasHeight);
+      this.ctx.stroke();
+    }
+    for (var y = startingPosition.y; y < canvasHeight; y += gridSize * 5) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(canvasWidth, y);
+      this.ctx.stroke();
+    }
   }
 
   private drawNode(index: number): void {
