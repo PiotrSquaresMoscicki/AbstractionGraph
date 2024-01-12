@@ -207,7 +207,7 @@ interface IViewModelObserver extends IModelObserver {
   onDisplayedParentChanged(): void
   onHoveredNodeChanged(): void
   onGridSizeChanged(): void
-  onViewPortPositionChanged(): void
+  onViewportPositionChanged(): void
 }
 
 class ViewModel {
@@ -267,7 +267,7 @@ class ViewModel {
 
   setViewportPosition(position: { x: number, y: number }): void {
     this.viewportPosition = position;
-    this.observers.forEach(observer => observer.onViewPortPositionChanged());
+    this.observers.forEach(observer => observer.onViewportPositionChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
@@ -322,7 +322,7 @@ class NodeHoverController implements IViewController {
   private viewModel: ViewModel;
 }
 
-class NodeMoveController {
+class NodeMoveController implements IViewController {
   constructor(viewModel: ViewModel) {
     this.viewModel = viewModel;
   }
@@ -618,6 +618,7 @@ class View implements IViewModelObserver {
   onDisplayedParentChanged(): void {}
   onHoveredNodeChanged(): void {}
   onGridSizeChanged(): void {}
+  onViewportPositionChanged(): void {}
   // end IViewModelObserver
 
   // Private members
