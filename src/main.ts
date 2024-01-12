@@ -524,7 +524,7 @@ class View implements IViewModelObserver {
     const canvasWidth = this.canvas.width;
     const canvasHeight = this.canvas.height;
     // get starting position of grid
-    const startingPosition = { x: viewportPosition.x % gridSize, y: viewportPosition.y % gridSize };
+    const startingPosition = { x: -viewportPosition.x % gridSize, y: -viewportPosition.y % gridSize };
     // draw small step grid
     this.ctx.strokeStyle = this.style.smallStepGridColor;
     this.ctx.lineWidth = 1;
@@ -543,13 +543,14 @@ class View implements IViewModelObserver {
     // draw big step grid
     this.ctx.strokeStyle = this.style.bigStepGridColor;
     this.ctx.lineWidth = 2;
-    for (var x = startingPosition.x; x < canvasWidth; x += gridSize * 5) {
+    const bigStepStartingPosition = { x: -viewportPosition.x % (gridSize * 5), y: -viewportPosition.y % (gridSize * 5) };
+    for (var x = bigStepStartingPosition.x; x < canvasWidth; x += gridSize * 5) {
       this.ctx.beginPath();
       this.ctx.moveTo(x, 0);
       this.ctx.lineTo(x, canvasHeight);
       this.ctx.stroke();
     }
-    for (var y = startingPosition.y; y < canvasHeight; y += gridSize * 5) {
+    for (var y = bigStepStartingPosition.y; y < canvasHeight; y += gridSize * 5) {
       this.ctx.beginPath();
       this.ctx.moveTo(0, y);
       this.ctx.lineTo(canvasWidth, y);
@@ -626,7 +627,7 @@ class View implements IViewModelObserver {
     this.ctx.fill();
   }
 
-  getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
+  private getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
     // get center of from rectangle
     const fromCenter = { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y + fromRectangle.height / 2 };
     // get center of to rectangle
@@ -654,7 +655,7 @@ class View implements IViewModelObserver {
     return intersection;
   }
 
-  getIntersection(line1: { startx: number, starty: number, endx: number, endy: number }, 
+  private getIntersection(line1: { startx: number, starty: number, endx: number, endy: number }, 
       line2: { startx: number, starty: number, endx: number, endy: number }): { x: number, y: number } | null {
     const denominator = (line2.endy - line2.starty) * (line1.endx - line1.startx) - (line2.endx - line2.startx) * (line1.endy - line1.starty);
     if (denominator === 0) {
@@ -680,7 +681,7 @@ class View implements IViewModelObserver {
   // on controllers until one of them becomes active. Then it stops calling the lambda and sets the
   // active controller.
   // This function is used by event handlers.
-  onEvent(lambda: (controller: IViewController) => void): void {
+  private onEvent(lambda: (controller: IViewController) => void): void {
     // if there is an active controller then pass the event to it
     if (this.activeController !== null) {
       lambda(this.activeController);
