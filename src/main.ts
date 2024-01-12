@@ -302,13 +302,16 @@ class NodeHoverController implements IViewController {
 
   onMouseMove(event: MouseEvent): void {
     // if mouse is hovered over a node then set it as hovered node
+    const viewportPosition = this.viewModel.getViewPortPosition();
+    const translatedCursorX = event.clientX + viewportPosition.x;
+    const translatedCursorY = event.clientY + viewportPosition.y;
     const displayedParent = this.viewModel.getDisplayedParent();
     const children = this.viewModel.getModel().getChildren(displayedParent);
     const rectangles = children.map(child => this.viewModel.getModel().getRectangle(child));
-    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
-        && event.clientX <= rectangle.x + rectangle.width 
-        && event.clientY >= rectangle.y 
-        && event.clientY <= rectangle.y + rectangle.height);
+    const index = rectangles.findIndex(rectangle => translatedCursorX >= rectangle.x 
+        && translatedCursorX <= rectangle.x + rectangle.width 
+        && translatedCursorY >= rectangle.y 
+        && translatedCursorY <= rectangle.y + rectangle.height);
     if (index !== -1) {
       this.viewModel.setHoveredNode(children[index]);
     } else {
@@ -338,13 +341,16 @@ class NodeMoveController implements IViewController {
     // if controller is not active, mouse is moving and LMB is pressed then set controller active
     if (!this.active && event.buttons === 1) {
       // if mouse is hovered over a node then move it and set controller active
+      const viewportPosition = this.viewModel.getViewPortPosition();
+      const translatedCursorX = event.clientX + viewportPosition.x;
+      const translatedCursorY = event.clientY + viewportPosition.y;
       const displayedParent = this.viewModel.getDisplayedParent();
       const children = this.viewModel.getModel().getChildren(displayedParent);
       const rectangles = children.map(child => this.viewModel.getModel().getRectangle(child));
-      const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
-          && event.clientX <= rectangle.x + rectangle.width 
-          && event.clientY >= rectangle.y 
-          && event.clientY <= rectangle.y + rectangle.height);
+      const index = rectangles.findIndex(rectangle => translatedCursorX >= rectangle.x 
+          && translatedCursorX <= rectangle.x + rectangle.width 
+          && translatedCursorY >= rectangle.y 
+          && translatedCursorY <= rectangle.y + rectangle.height);
       if (index !== -1) {
         this.active = true;
         this.draggedNode = children[index];
