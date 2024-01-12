@@ -265,7 +265,7 @@ class ViewModel {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
-  setViewPortPosition(position: { x: number, y: number }): void {
+  setViewportPosition(position: { x: number, y: number }): void {
     this.viewportPosition = position;
     this.observers.forEach(observer => observer.onViewPortPositionChanged());
     this.observers.forEach(observer => observer.onModelChanged());
@@ -434,12 +434,12 @@ class View implements IViewModelObserver {
   // Private methods
   private drawGrid(): void {
     // get view port position
-    const viewPortPosition = this.viewModel.getViewPortPosition();
+    const viewportPosition = this.viewModel.getViewPortPosition();
     // get grid size
     const gridSize = this.viewModel.getGridSize();
     // calculate offset
-    const offsetX = viewPortPosition.x % gridSize;
-    const offsetY = viewPortPosition.y % gridSize;
+    const offsetX = viewportPosition.x % gridSize;
+    const offsetY = viewportPosition.y % gridSize;
     // calculate number of lines
     const numberOfLinesX = Math.floor(this.canvas.width / gridSize) + 1;
     const numberOfLinesY = Math.floor(this.canvas.height / gridSize) + 1;
