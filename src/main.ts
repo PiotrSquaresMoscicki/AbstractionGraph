@@ -357,8 +357,12 @@ class NodeMoveController implements IViewController {
       // move node
       const deltaX = event.clientX - this.startingCursorPosition.x;
       const deltaY = event.clientY - this.startingCursorPosition.y;
-      const rectangle = new Rectangle(this.startingRectangle.x + deltaX, this.startingRectangle.y + deltaY, 
+      var rectangle = new Rectangle(this.startingRectangle.x + deltaX, this.startingRectangle.y + deltaY, 
         this.startingRectangle.width, this.startingRectangle.height);
+      // snap to grid
+      const gridSize = this.viewModel.getGridSize();
+      rectangle.x = Math.round(rectangle.x / gridSize) * gridSize;
+      rectangle.y = Math.round(rectangle.y / gridSize) * gridSize;
       this.viewModel.getModel().setRectangle(this.draggedNode, rectangle);
     }
   }
