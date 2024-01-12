@@ -379,6 +379,48 @@ class NodeMoveController implements IViewController {
   private startingRectangle: Rectangle = new Rectangle(0, 0, 0, 0);
 }
 
+class ViewportMoveController implements IViewController {
+  constructor(viewModel: ViewModel) {
+    this.viewModel = viewModel;
+  }
+
+  // IViewController
+  isActive(): boolean { return this.active; }
+
+  onOtherControllerActivated(): void {}
+
+  onMouseDown(event: MouseEvent): void {
+    // if controller is not active, mouse is moving and RMB is pressed then set controller active
+    if (!this.active && event.buttons === 2) {
+      this.active = true;
+      this.startingCursorPosition = { x: event.clientX, y: event.clientY };
+      this.startingViewportPosition = this.viewModel.getViewPortPosition();
+    }
+  }
+
+  onMouseMove(event: MouseEvent): void {
+    if (this.active) {
+      // move viewport
+      const deltaX = event.clientX - this.startingCursorPosition.x;
+      const deltaY = event.clientY - this.startingCursorPosition.y;
+      const position = { x: this.startingViewportPosition.x - deltaX, y: this.startingViewportPosition.y - deltaY };
+      this.viewModel.setViewportPosition(position);
+    }
+  }
+
+  onMouseUp(_event: MouseEvent): void {
+    this.active = false;
+    this.startingCursorPosition = { x: 0, y: 0 };
+    this.startingViewportPosition = { x: 0, y: 0 };
+  }
+
+  // Private members
+  private viewModel: ViewModel;
+  private active: boolean = false;
+  private startingCursorPosition: { x: number, y: number } = { x: 0, y: 0 };
+  private startingViewportPosition: { x: number, y: number } = { x: 0, y: 0 };
+}
+
 class View implements IViewModelObserver {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
@@ -389,6 +431,7 @@ class View implements IViewModelObserver {
     this.viewModel.registerObserver(this as IViewModelObserver);
 
     // create controllers
+    this.controllers.push(new ViewportMoveController(this.viewModel));
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new NodeHoverController(this.viewModel));
 
@@ -401,6 +444,8 @@ class View implements IViewModelObserver {
     canvas.addEventListener('mousemove', (event) => this.onEvent(controller => controller.onMouseMove(event)));
     canvas.addEventListener('mouseup', (event) => this.onEvent(controller => controller.onMouseUp(event)));
     
+    // disable native context menu
+    canvas.addEventListener('contextmenu', (event) => event.preventDefault());
   }
 
   draw(): void {
@@ -465,7 +510,11 @@ class View implements IViewModelObserver {
 
   drawNode(index: number): void {
     // get rectangle
-    const rectangle = this.viewModel.getModel().getRectangle(index);
+    var rectangle = this.viewModel.getModel().getRectangle(index);
+    // get view port position
+    const viewportPosition = this.viewModel.getViewPortPosition();
+    // translate rectangle
+    rectangle = new Rectangle(rectangle.x - viewportPosition.x, rectangle.y - viewportPosition.y, rectangle.width, rectangle.height);
     // fill rect with white color
     this.ctx.fillStyle = 'white';
     this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
@@ -489,10 +538,16 @@ class View implements IViewModelObserver {
   }
 
   drawConnection(connection: Connection): void {
+    // get view port position
+    const viewportPosition = this.viewModel.getViewPortPosition();
     // get from rectangle
-    const fromRectangle = this.viewModel.getModel().getRectangle(connection.from);
+    var fromRectangle = this.viewModel.getModel().getRectangle(connection.from);
+    // translate from rectangle
+    fromRectangle = new Rectangle(fromRectangle.x - viewportPosition.x, fromRectangle.y - viewportPosition.y, fromRectangle.width, fromRectangle.height);
     // get to rectangle
-    const toRectangle = this.viewModel.getModel().getRectangle(connection.to);
+    var toRectangle = this.viewModel.getModel().getRectangle(connection.to);
+    // translate to rectangle
+    toRectangle = new Rectangle(toRectangle.x - viewportPosition.x, toRectangle.y - viewportPosition.y, toRectangle.width, toRectangle.height);
     // don't draw if rectangles are overlapping
     if (fromRectangle.x + fromRectangle.width >= toRectangle.x && fromRectangle.y + fromRectangle.height >= toRectangle.y
         && fromRectangle.x <= toRectangle.x + toRectangle.width && fromRectangle.y <= toRectangle.y + toRectangle.height) {
