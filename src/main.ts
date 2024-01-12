@@ -206,6 +206,8 @@ class Model {
 interface IViewModelObserver extends IModelObserver {
   onDisplayedParentChanged(): void
   onHoveredNodeChanged(): void
+  onGridSizeChanged(): void
+  onViewPortPositionChanged(): void
 }
 
 class ViewModel {
@@ -224,6 +226,14 @@ class ViewModel {
 
   getHoveredNode(): number {
     return this.hoveredNode;
+  }
+
+  getGridSize(): number {
+    return this.gridSize;
+  }
+
+  getViewPortPosition(): { x: number, y: number } {
+    return this.viewportPosition;
   }
 
   // Mutators
@@ -249,11 +259,25 @@ class ViewModel {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
+  setGridSize(size: number): void {
+    this.gridSize = size;
+    this.observers.forEach(observer => observer.onGridSizeChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
+  setViewPortPosition(position: { x: number, y: number }): void {
+    this.viewportPosition = position;
+    this.observers.forEach(observer => observer.onViewPortPositionChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
   // Private members
   private model: Model;
   private observers: IViewModelObserver[] = [];
   private displayedParent: number = 0;
   private hoveredNode: number = -1;
+  private viewportPosition: { x: number, y: number } = { x: 0, y: 0 };
+  private gridSize: number = 10;
 }
 
 class IViewController {
@@ -387,6 +411,10 @@ class View implements IViewModelObserver {
     // fill with white
     this.ctx.fillStyle = 'white';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // draw grid
+    this.drawGrid();
+
     // get displayed parent
     const displayedParent = this.viewModel.getDisplayedParent();
     // get children
@@ -404,6 +432,37 @@ class View implements IViewModelObserver {
   }
 
   // Private methods
+  private drawGrid(): void {
+    // get view port position
+    const viewPortPosition = this.viewModel.getViewPortPosition();
+    // get grid size
+    const gridSize = this.viewModel.getGridSize();
+    // calculate offset
+    const offsetX = viewPortPosition.x % gridSize;
+    const offsetY = viewPortPosition.y % gridSize;
+    // calculate number of lines
+    const numberOfLinesX = Math.floor(this.canvas.width / gridSize) + 1;
+    const numberOfLinesY = Math.floor(this.canvas.height / gridSize) + 1;
+    // draw vertical lines
+    this.ctx.strokeStyle = 'lightgray';
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    for (let i = 0; i < numberOfLinesX; i++) {
+      const x = i * gridSize - offsetX;
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, this.canvas.height);
+    }
+    this.ctx.stroke();
+    // draw horizontal lines
+    this.ctx.beginPath();
+    for (let i = 0; i < numberOfLinesY; i++) {
+      const y = i * gridSize - offsetY;
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(this.canvas.width, y);
+    }
+    this.ctx.stroke();
+  }
+
   drawNode(index: number): void {
     // get rectangle
     const rectangle = this.viewModel.getModel().getRectangle(index);
@@ -558,6 +617,7 @@ class View implements IViewModelObserver {
   onConnectionRemoved(_from: number, _to: number): void {}
   onDisplayedParentChanged(): void {}
   onHoveredNodeChanged(): void {}
+  onGridSizeChanged(): void {}
   // end IViewModelObserver
 
   // Private members
