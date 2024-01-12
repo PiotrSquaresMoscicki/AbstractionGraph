@@ -272,9 +272,7 @@ class NodeHoverController implements IViewController {
   // IViewController
   isActive(): boolean { return false; }
 
-  onOtherControllerActivated(): void {
-    this.viewModel.setHoveredNode(-1);
-  }
+  onOtherControllerActivated(): void {}
 
   onMouseDown(_event: MouseEvent): void {}
 
@@ -371,12 +369,21 @@ class View implements IViewModelObserver {
     this.controllers.push(new NodeHoverController(this.viewModel));
 
     // add event listeners
+    // redraw on resize
+    window.addEventListener('resize', () => this.draw());
+    
+    // mouse events
     canvas.addEventListener('mousedown', (event) => this.onEvent(controller => controller.onMouseDown(event)));
     canvas.addEventListener('mousemove', (event) => this.onEvent(controller => controller.onMouseMove(event)));
     canvas.addEventListener('mouseup', (event) => this.onEvent(controller => controller.onMouseUp(event)));
+    
   }
 
   draw(): void {
+    // set canvas size
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+
     // fill with white
     this.ctx.fillStyle = 'white';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -568,8 +575,6 @@ class View implements IViewModelObserver {
 var model = new Model();
 var viewModel = new ViewModel(model);
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
 var view = new View(viewModel, canvas);
 
 // create sample graph
