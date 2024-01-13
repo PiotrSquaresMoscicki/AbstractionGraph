@@ -208,6 +208,7 @@ interface IViewModelObserver extends IModelObserver {
   onHoveredNodeChanged(): void
   onGridSizeChanged(): void
   onViewportPositionChanged(): void
+  onZoomChanged(): void
 }
 
 class ViewModel {
@@ -218,6 +219,15 @@ class ViewModel {
   // Accessors
   getModel(): Model {
     return this.model;
+  }
+
+  getRectangleInViewport(index: number): Rectangle {
+    // calculate rectangle position and size based on viewport position and zoom
+    const rectangle = this.model.getRectangle(index);
+    const viewportPosition = this.viewportPosition;
+    const zoom = this.zoom;
+    return new Rectangle(rectangle.x * zoom + viewportPosition.x, rectangle.y * zoom + viewportPosition.y, 
+      rectangle.width * zoom, rectangle.height * zoom);
   }
 
   getDisplayedParent(): number {
@@ -234,6 +244,10 @@ class ViewModel {
 
   getViewPortPosition(): { x: number, y: number } {
     return this.viewportPosition;
+  }
+
+  getZoom(): number {
+    return this.zoom;
   }
 
   // Mutators
@@ -271,6 +285,12 @@ class ViewModel {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
+  setZoom(zoom: number): void {
+    this.zoom = zoom;
+    this.observers.forEach(observer => observer.onZoomChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
   // Private members
   private model: Model;
   private observers: IViewModelObserver[] = [];
@@ -278,6 +298,7 @@ class ViewModel {
   private hoveredNode: number = -1;
   private viewportPosition: { x: number, y: number } = { x: 0, y: 0 };
   private gridSize: number = 10;
+  private zoom: number = 2;
 }
 
 class IViewController {
@@ -302,16 +323,13 @@ class NodeHoverController implements IViewController {
 
   onMouseMove(event: MouseEvent): void {
     // if mouse is hovered over a node then set it as hovered node
-    const viewportPosition = this.viewModel.getViewPortPosition();
-    const translatedCursorX = event.clientX + viewportPosition.x;
-    const translatedCursorY = event.clientY + viewportPosition.y;
     const displayedParent = this.viewModel.getDisplayedParent();
     const children = this.viewModel.getModel().getChildren(displayedParent);
-    const rectangles = children.map(child => this.viewModel.getModel().getRectangle(child));
-    const index = rectangles.findIndex(rectangle => translatedCursorX >= rectangle.x 
-        && translatedCursorX <= rectangle.x + rectangle.width 
-        && translatedCursorY >= rectangle.y 
-        && translatedCursorY <= rectangle.y + rectangle.height);
+    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
+        && event.clientX <= rectangle.x + rectangle.width 
+        && event.clientY >= rectangle.y 
+        && event.clientY <= rectangle.y + rectangle.height);
     if (index !== -1) {
       this.viewModel.setHoveredNode(children[index]);
     } else {
@@ -341,21 +359,18 @@ class NodeMoveController implements IViewController {
     // if controller is not active, mouse is moving and LMB is pressed then set controller active
     if (!this.active && event.buttons === 1) {
       // if mouse is hovered over a node then move it and set controller active
-      const viewportPosition = this.viewModel.getViewPortPosition();
-      const translatedCursorX = event.clientX + viewportPosition.x;
-      const translatedCursorY = event.clientY + viewportPosition.y;
       const displayedParent = this.viewModel.getDisplayedParent();
       const children = this.viewModel.getModel().getChildren(displayedParent);
-      const rectangles = children.map(child => this.viewModel.getModel().getRectangle(child));
-      const index = rectangles.findIndex(rectangle => translatedCursorX >= rectangle.x 
-          && translatedCursorX <= rectangle.x + rectangle.width 
-          && translatedCursorY >= rectangle.y 
-          && translatedCursorY <= rectangle.y + rectangle.height);
+      const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+      const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
+          && event.clientX <= rectangle.x + rectangle.width 
+          && event.clientY >= rectangle.y 
+          && event.clientY <= rectangle.y + rectangle.height);
       if (index !== -1) {
         this.active = true;
         this.draggedNode = children[index];
         this.startingCursorPosition = { x: event.clientX, y: event.clientY };
-        this.startingRectangle = this.viewModel.getModel().getRectangle(this.draggedNode);
+        this.startingRectangle = this.viewModel.getRectangleInViewport(this.draggedNode);
       }
     }
     
@@ -566,11 +581,7 @@ class View implements IViewModelObserver {
 
   private drawNode(index: number): void {
     // get rectangle
-    var rectangle = this.viewModel.getModel().getRectangle(index);
-    // get view port position
-    const viewportPosition = this.viewModel.getViewPortPosition();
-    // translate rectangle
-    rectangle = new Rectangle(rectangle.x - viewportPosition.x, rectangle.y - viewportPosition.y, rectangle.width, rectangle.height);
+    const rectangle = this.viewModel.getRectangleInViewport(index);
     // fill rect
     this.ctx.fillStyle = this.style.nodeColor;
     this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
@@ -597,11 +608,11 @@ class View implements IViewModelObserver {
     // get view port position
     const viewportPosition = this.viewModel.getViewPortPosition();
     // get from rectangle
-    var fromRectangle = this.viewModel.getModel().getRectangle(connection.from);
+    var fromRectangle = this.viewModel.getRectangleInViewport(connection.from);
     // translate from rectangle
     fromRectangle = new Rectangle(fromRectangle.x - viewportPosition.x, fromRectangle.y - viewportPosition.y, fromRectangle.width, fromRectangle.height);
     // get to rectangle
-    var toRectangle = this.viewModel.getModel().getRectangle(connection.to);
+    var toRectangle = this.viewModel.getRectangleInViewport(connection.to);
     // translate to rectangle
     toRectangle = new Rectangle(toRectangle.x - viewportPosition.x, toRectangle.y - viewportPosition.y, toRectangle.width, toRectangle.height);
     // don't draw if rectangles are overlapping
@@ -730,6 +741,7 @@ class View implements IViewModelObserver {
   onHoveredNodeChanged(): void {}
   onGridSizeChanged(): void {}
   onViewportPositionChanged(): void {}
+  onZoomChanged(): void {}
   // end IViewModelObserver
 
   // Private members
