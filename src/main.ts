@@ -226,7 +226,7 @@ class ViewModel {
     const rectangle = this.model.getRectangle(index);
     const viewportPosition = this.viewportPosition;
     const zoom = this.zoom;
-    return new Rectangle(rectangle.x * zoom + viewportPosition.x, rectangle.y * zoom + viewportPosition.y, 
+    return new Rectangle(rectangle.x * zoom - viewportPosition.x, rectangle.y * zoom - viewportPosition.y, 
       rectangle.width * zoom, rectangle.height * zoom);
   }
 
@@ -239,7 +239,7 @@ class ViewModel {
   }
 
   getGridSize(): number {
-    return this.gridSize;
+    return this.gridSize * this.zoom;
   }
 
   getViewPortPosition(): { x: number, y: number } {
@@ -259,6 +259,19 @@ class ViewModel {
   unregisterObserver(observer: IViewModelObserver): void {
     this.observers = this.observers.filter(item => item !== observer);
     this.model.unregisterObserver(observer);
+  }
+
+  setRectangleInViewport(index: number, rectangle: Rectangle): void {
+    // calculate rectangle position and size based on viewport position and zoom
+    const viewportPosition = this.viewportPosition;
+    const zoom = this.zoom;
+    var modelRectangle = new Rectangle((rectangle.x + viewportPosition.x) / zoom, (rectangle.y + viewportPosition.y) / zoom, 
+      rectangle.width / zoom, rectangle.height / zoom);
+    // snap to grid
+    const gridSize = this.gridSize;
+    modelRectangle.x = Math.round(modelRectangle.x / gridSize) * gridSize;
+    modelRectangle.y = Math.round(modelRectangle.y / gridSize) * gridSize;
+    this.model.setRectangle(index, modelRectangle);
   }
 
   setDisplayedParent(index: number): void {
@@ -380,11 +393,7 @@ class NodeMoveController implements IViewController {
       const deltaY = event.clientY - this.startingCursorPosition.y;
       var rectangle = new Rectangle(this.startingRectangle.x + deltaX, this.startingRectangle.y + deltaY, 
         this.startingRectangle.width, this.startingRectangle.height);
-      // snap to grid
-      const gridSize = this.viewModel.getGridSize();
-      rectangle.x = Math.round(rectangle.x / gridSize) * gridSize;
-      rectangle.y = Math.round(rectangle.y / gridSize) * gridSize;
-      this.viewModel.getModel().setRectangle(this.draggedNode, rectangle);
+      this.viewModel.setRectangleInViewport(this.draggedNode, rectangle);
     }
   }
 
@@ -605,16 +614,10 @@ class View implements IViewModelObserver {
   }
 
   private drawConnection(connection: Connection): void {
-    // get view port position
-    const viewportPosition = this.viewModel.getViewPortPosition();
     // get from rectangle
     var fromRectangle = this.viewModel.getRectangleInViewport(connection.from);
-    // translate from rectangle
-    fromRectangle = new Rectangle(fromRectangle.x - viewportPosition.x, fromRectangle.y - viewportPosition.y, fromRectangle.width, fromRectangle.height);
     // get to rectangle
     var toRectangle = this.viewModel.getRectangleInViewport(connection.to);
-    // translate to rectangle
-    toRectangle = new Rectangle(toRectangle.x - viewportPosition.x, toRectangle.y - viewportPosition.y, toRectangle.width, toRectangle.height);
     // don't draw if rectangles are overlapping
     if (fromRectangle.x + fromRectangle.width >= toRectangle.x && fromRectangle.y + fromRectangle.height >= toRectangle.y
         && fromRectangle.x <= toRectangle.x + toRectangle.width && fromRectangle.y <= toRectangle.y + toRectangle.height) {
