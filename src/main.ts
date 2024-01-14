@@ -311,7 +311,7 @@ class ViewModel {
   private hoveredNode: number = -1;
   private viewportPosition: { x: number, y: number } = { x: 0, y: 0 };
   private gridSize: number = 10;
-  private zoom: number = 2;
+  private zoom: number = 1;
 }
 
 class IViewController {
@@ -320,6 +320,7 @@ class IViewController {
   onMouseDown(_event: MouseEvent): void {}
   onMouseMove(_event: MouseEvent): void {}
   onMouseUp(_event: MouseEvent): void {}
+  wheel(_event: WheelEvent): void {}
 }
 
 class NodeHoverController implements IViewController {
@@ -351,6 +352,8 @@ class NodeHoverController implements IViewController {
   }
 
   onMouseUp(_event: MouseEvent): void {}
+
+  wheel(_event: WheelEvent): void {}
 
   // Private members
   private viewModel: ViewModel;
@@ -404,6 +407,8 @@ class NodeMoveController implements IViewController {
     this.startingRectangle = new Rectangle(0, 0, 0, 0);
   }
 
+  wheel(_event: WheelEvent): void {}
+
 
   // Private members
   private viewModel: ViewModel;
@@ -448,11 +453,53 @@ class ViewportMoveController implements IViewController {
     this.startingViewportPosition = { x: 0, y: 0 };
   }
 
+  wheel(_event: WheelEvent): void {}
+
   // Private members
   private viewModel: ViewModel;
   private active: boolean = false;
   private startingCursorPosition: { x: number, y: number } = { x: 0, y: 0 };
   private startingViewportPosition: { x: number, y: number } = { x: 0, y: 0 };
+}
+
+class ViewportZoomController implements IViewController {
+  constructor(viewModel: ViewModel) {
+    this.viewModel = viewModel;
+  }
+
+  // IViewController
+  isActive(): boolean { return false; }
+
+  onOtherControllerActivated(): void {}
+
+  onMouseDown(_event: MouseEvent): void {}
+
+  onMouseMove(_event: MouseEvent): void {}
+
+  onMouseUp(_event: MouseEvent): void {}
+
+  wheel(event: WheelEvent): void {
+    // get zoom
+    var zoom = this.viewModel.getZoom();
+    // calculate new zoom
+    zoom += event.deltaY / 1000;
+    zoom = Math.max(0.1, zoom);
+    zoom = Math.min(10, zoom);
+    // zoom around the mouse cursor
+    const mousePosition = { x: event.clientX, y: event.clientY };
+    const viewportPosition = this.viewModel.getViewPortPosition();
+    const oldZoom = this.viewModel.getZoom();
+    const mousePositionInModel = { x: (mousePosition.x + viewportPosition.x) / oldZoom, y: (mousePosition.y + viewportPosition.y) / oldZoom };
+    const mousePositionInModelAfterZoom = { x: (mousePosition.x + viewportPosition.x) / zoom, y: (mousePosition.y + viewportPosition.y) / zoom };
+    const delta = { x: mousePositionInModel.x - mousePositionInModelAfterZoom.x, y: mousePositionInModel.y - mousePositionInModelAfterZoom.y };
+    const viewportPositionAfterZoom = { x: viewportPosition.x + delta.x * zoom, y: viewportPosition.y + delta.y * zoom };
+    this.viewModel.setViewportPosition(viewportPositionAfterZoom);
+    // set zoom
+    this.viewModel.setZoom(zoom);
+  }
+
+  // Private members
+  private viewModel: ViewModel;
 }
 
 class ViewStyle {
@@ -499,6 +546,7 @@ class View implements IViewModelObserver {
     this.controllers.push(new ViewportMoveController(this.viewModel));
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new NodeHoverController(this.viewModel));
+    this.controllers.push(new ViewportZoomController(this.viewModel));
 
     // add event listeners
     // redraw on resize
@@ -508,6 +556,7 @@ class View implements IViewModelObserver {
     canvas.addEventListener('mousedown', (event) => this.onEvent(controller => controller.onMouseDown(event)));
     canvas.addEventListener('mousemove', (event) => this.onEvent(controller => controller.onMouseMove(event)));
     canvas.addEventListener('mouseup', (event) => this.onEvent(controller => controller.onMouseUp(event)));
+    canvas.addEventListener('wheel', (event) => this.onEvent(controller => controller.wheel(event)));
     
     // disable native context menu
     canvas.addEventListener('contextmenu', (event) => event.preventDefault());
@@ -605,11 +654,11 @@ class View implements IViewModelObserver {
     // get name
     const name = this.viewModel.getModel().getName(index);
     // draw name
-    const textSize = this.style.textSize;
+    const textSize = this.style.textSize * this.viewModel.getZoom();
     this.ctx.fillStyle = this.style.nodeTextColor;
     this.ctx.font = `${textSize}px ${this.style.textFont}`;
     const textPosx = rectangle.x + rectangle.width / 2 - this.ctx.measureText(name).width / 2;
-    const textPosy = rectangle.y + rectangle.height / 2 + 5;
+    const textPosy = rectangle.y + rectangle.height / 2 + textSize / 3.5;
     this.ctx.fillText(name, textPosx, textPosy);
   }
 
