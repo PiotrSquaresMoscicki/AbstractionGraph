@@ -206,6 +206,7 @@ class Model {
 interface IViewModelObserver extends IModelObserver {
   onDisplayedParentChanged(): void
   onHoveredNodeChanged(): void
+  onRenamedNodeChanged(): void
   onGridSizeChanged(): void
   onViewportPositionChanged(): void
   onZoomChanged(): void
@@ -271,6 +272,10 @@ class ViewModel {
     return this.hoveredNode;
   }
 
+  getRenamedNode(): number {
+    return this.renamedNode;
+  }
+
   getGridSize(): number {
     return this.gridSize * this.zoom;
   }
@@ -319,6 +324,12 @@ class ViewModel {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
+  setRenamedNode(index: number): void {
+    this.renamedNode = index;
+    this.observers.forEach(observer => observer.onRenamedNodeChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
   setGridSize(size: number): void {
     this.gridSize = size;
     this.observers.forEach(observer => observer.onGridSizeChanged());
@@ -343,6 +354,7 @@ class ViewModel {
   private observers: IViewModelObserver[] = [];
   private displayedParent: number = 0;
   private hoveredNode: number = -1;
+  private renamedNode: number = -1;
   private viewportPosition: { x: number, y: number } = { x: 0, y: 0 };
   private gridSize: number = 10;
   private zoom: number = 1;
@@ -563,87 +575,134 @@ class ViewportZoomController implements IViewController {
 }
 
 class NodeRenameController implements IViewController {
-  constructor(viewModel: ViewModel) {
+  constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
+    this.canvas = canvas;
   }
 
   // IViewController
-  isActive(): boolean { return this.active; }
+  isActive(): boolean { return false; }
 
-  onOtherControllerActivated(): void {}
+  onOtherControllerActivated(): void {
+    // if controller is active then cancel rename
+    if (this.active) {
+      this.finishRename();
+    }
+  }
 
   onMouseDown(_event: MouseEvent): void {}
 
   onMouseMove(_event: MouseEvent): void {}
 
-  onMouseUp(_event: MouseEvent): void {}
+  onMouseUp(_event: MouseEvent): void {
+    // if controller is active and mouse up is performed outside of the renamed node then finish rename
+    if (this.active) {
+      const rectangle = this.viewModel.getRectangleInViewport(this.renamedNode);
+      if (_event.clientX < rectangle.x || _event.clientX > rectangle.x + rectangle.width 
+          || _event.clientY < rectangle.y || _event.clientY > rectangle.y + rectangle.height) {
+        this.finishRename();
+      }
+    }
+  }
 
   onWheel(_event: WheelEvent): void {}
 
   onDblClick(event: MouseEvent): void {
-    // if double click is performed on a node then set controller active
-    const displayedParent = this.viewModel.getDisplayedParent();
-    const children = this.viewModel.getModel().getChildren(displayedParent);
-    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
-    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
-        && event.clientX <= rectangle.x + rectangle.width 
-        && event.clientY >= rectangle.y 
-        && event.clientY <= rectangle.y + rectangle.height);
-    if (index !== -1) {
-      this.active = true;
-      this.renamedNode = children[index];
-      this.newName = this.viewModel.getModel().getName(this.renamedNode);
-      // spawn input element
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.style.position = 'absolute';
-      input.style.left = `${event.clientX}px`;
-      input.style.top = `${event.clientY}px`;
-      input.style.width = `${rectangles[index].width}px`;
-      input.style.height = `${rectangles[index].height}px`;
-      input.style.backgroundColor = 'transparent';
-      input.style.border = 'none';
-      input.style.outline = 'none';
-      
-      input.value = this.newName;
-      input.focus();
-      input.select();
-      input.addEventListener('input', (event) => {
-        this.newName = (event.target as HTMLInputElement).value;
-      });
-      input.addEventListener('blur', () => {
-        this.active = false;
-        this.renamedNode = -1;
-        this.newName = '';
-        document.body.removeChild(input);
-      });
-      document.body.appendChild(input);
+    if (!this.active) {
+      // if double click is performed on a node then set controller active
+      const displayedParent = this.viewModel.getDisplayedParent();
+      const children = this.viewModel.getModel().getChildren(displayedParent);
+      const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+      const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
+          && event.clientX <= rectangle.x + rectangle.width 
+          && event.clientY >= rectangle.y 
+          && event.clientY <= rectangle.y + rectangle.height);
+      if (index !== -1) {
+        this.startRename(children[index]);
+      }
     }
   }
 
   onKeydown(_event: KeyboardEvent): void {}
 
   onKeyup(event: KeyboardEvent): void {
-    // if controller is active and enter is pressed then rename node
+    // if enter is pressed then finish rename
     if (this.active && event.key === 'Enter') {
-      this.viewModel.getModel().setName(this.renamedNode, this.newName);
-      this.active = false;
-      this.renamedNode = -1;
-      this.newName = '';
+      this.finishRename();
     }
-    // if controller is active and escape is pressed then cancel renaming
+    // if escape is pressed then cancel rename
     if (this.active && event.key === 'Escape') {
-      this.active = false;
-      this.renamedNode = -1;
-      this.newName = '';
+      this.cancelRename();
+    }
+  }
+
+  private startRename(node: number): void {
+    this.active = true;
+    this.renamedNode = node;
+    this.viewModel.setRenamedNode(this.renamedNode);
+    const rectangle = this.viewModel.getRectangleInViewport(this.renamedNode);
+    // spawn input element
+    this.input = document.createElement('input');
+    this.input.id = 'rename-input';
+    this.input.type = 'text';
+    this.input.style.position = 'absolute';
+    this.input.style.left = `${rectangle.x}px`;
+    this.input.style.top = `${rectangle.y}px`;
+    this.input.style.width = `${rectangle.width}px`;
+    this.input.style.height = `${rectangle.height}px`;
+    this.input.style.backgroundColor = 'transparent';
+    this.input.style.border = 'none';
+    this.input.style.outline = 'none';
+    this.input.style.color = this.viewModel.getViewStyle().nodeTextColor;
+    const textSize = this.viewModel.getViewStyle().textSize * this.viewModel.getZoom();
+    this.input.style.fontSize = `${textSize}px`;
+    this.input.style.fontFamily = this.viewModel.getViewStyle().textFont;
+    this.input.style.textAlign = 'center';
+    this.input.style.padding = '0';
+    this.input.style.margin = '0';
+
+    this.input.value = this.viewModel.getModel().getName(this.renamedNode);
+    document.body.appendChild(this.input);
+    this.input.focus();
+    this.input.select();
+    // select all text
+    this.input.setSelectionRange(0, this.input.value.length);
+
+    // add event listeners
+    this.input.addEventListener('keydown', (event) => this.onKeydown(event));
+    this.input.addEventListener('keyup', (event) => this.onKeyup(event));
+
+    // forward mouse move event to the canvas if there are no buttons pressed
+    this.input.addEventListener('mousemove', (event) => {
+      if (event.buttons === 0) {
+        this.canvas.dispatchEvent(new MouseEvent('mousemove', event));
+      }
+    });
+  }
+
+  private finishRename(): void {
+    // set new name in the model and then cancel rename
+    this.viewModel.getModel().setName(this.renamedNode, this.input?.value || '');
+    this.cancelRename();
+  }
+
+  private cancelRename(): void {
+    this.active = false;
+    this.renamedNode = -1;
+    this.viewModel.setRenamedNode(-1);
+    // remove input element
+    if (this.input !== null) {
+      document.body.removeChild(this.input);
+      this.input = null;
     }
   }
 
   // Private members
   private viewModel: ViewModel;
+  private canvas: HTMLCanvasElement;
   private active: boolean = false;
   private renamedNode: number = -1;
-  private newName: string = '';
+  private input: HTMLInputElement | null = null;
 }
 
 class View implements IViewModelObserver {
@@ -660,7 +719,7 @@ class View implements IViewModelObserver {
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new NodeHoverController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
-    this.controllers.push(new NodeRenameController(this.viewModel));
+    this.controllers.push(new NodeRenameController(this.viewModel, this.canvas));
 
     // add event listeners
     // redraw on resize
@@ -767,15 +826,19 @@ class View implements IViewModelObserver {
     }
     
     this.ctx.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
-    // get name
-    const name = this.viewModel.getModel().getName(index);
-    // draw name
-    const textSize = this.viewModel.getViewStyle().textSize * this.viewModel.getZoom();
-    this.ctx.fillStyle = this.viewModel.getViewStyle().nodeTextColor;
-    this.ctx.font = `${textSize}px ${this.viewModel.getViewStyle().textFont}`;
-    const textPosx = rectangle.x + rectangle.width / 2 - this.ctx.measureText(name).width / 2;
-    const textPosy = rectangle.y + rectangle.height / 2 + textSize / 3.5;
-    this.ctx.fillText(name, textPosx, textPosy);
+
+    // skip drawing name of node is renamed
+    if (index !== this.viewModel.getRenamedNode()) {
+      // get name
+      const name = this.viewModel.getModel().getName(index);
+      // draw name
+      const textSize = this.viewModel.getViewStyle().textSize * this.viewModel.getZoom();
+      this.ctx.fillStyle = this.viewModel.getViewStyle().nodeTextColor;
+      this.ctx.font = `${textSize}px ${this.viewModel.getViewStyle().textFont}`;
+      const textPosx = rectangle.x + rectangle.width / 2 - this.ctx.measureText(name).width / 2;
+      const textPosy = rectangle.y + rectangle.height / 2 + textSize / 3.5;
+      this.ctx.fillText(name, textPosx, textPosy);
+    }
   }
 
   private drawConnection(connection: Connection): void {
@@ -915,6 +978,7 @@ class View implements IViewModelObserver {
   onConnectionRemoved(_from: number, _to: number): void {}
   onDisplayedParentChanged(): void {}
   onHoveredNodeChanged(): void {}
+  onRenamedNodeChanged(): void {}
   onGridSizeChanged(): void {}
   onViewportPositionChanged(): void {}
   onZoomChanged(): void {}
