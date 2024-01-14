@@ -211,6 +211,37 @@ interface IViewModelObserver extends IModelObserver {
   onZoomChanged(): void
 }
 
+class ViewStyle {
+  constructor() {
+    // dark theme using vs code dark theme colors
+    this.backgroundColor = '#1e1e1e';
+    this.smallStepGridColor = '#26262d';
+    this.bigStepGridColor = '#26262d';
+    this.nodeColor = '#252526';
+    this.nodeBorderColor = '#4e4e52';
+    this.nodeHoveredBorderColor = '#007acc';
+    this.nodeTextColor = '#c0c0c0';
+    this.connectionColor = '#c0c0c0';
+    this.connectionArrowColor = '#c0c0c0';
+    this.connectionArrowLength = 12;
+    this.textSize = 15;
+    this.textFont = 'Consolas';
+  }
+
+  backgroundColor: string;
+  smallStepGridColor: string;
+  bigStepGridColor: string;
+  nodeColor: string;
+  nodeBorderColor: string;
+  nodeHoveredBorderColor: string;
+  nodeTextColor: string;
+  connectionColor: string;
+  connectionArrowColor: string;
+  connectionArrowLength: number;
+  textSize: number;
+  textFont: string;
+}
+
 class ViewModel {
   constructor(model: Model) {
     this.model = model;
@@ -220,6 +251,8 @@ class ViewModel {
   getModel(): Model {
     return this.model;
   }
+
+  getViewStyle(): ViewStyle { return this.viewStyle; }
 
   getRectangleInViewport(index: number): Rectangle {
     // calculate rectangle position and size based on viewport position and zoom
@@ -306,6 +339,7 @@ class ViewModel {
 
   // Private members
   private model: Model;
+  private viewStyle: ViewStyle = new ViewStyle();
   private observers: IViewModelObserver[] = [];
   private displayedParent: number = 0;
   private hoveredNode: number = -1;
@@ -612,37 +646,6 @@ class NodeRenameController implements IViewController {
   private newName: string = '';
 }
 
-class ViewStyle {
-  constructor() {
-    // dark theme using vs code dark theme colors
-    this.backgroundColor = '#1e1e1e';
-    this.smallStepGridColor = '#26262d';
-    this.bigStepGridColor = '#26262d';
-    this.nodeColor = '#252526';
-    this.nodeBorderColor = '#4e4e52';
-    this.nodeHoveredBorderColor = '#007acc';
-    this.nodeTextColor = '#c0c0c0';
-    this.connectionColor = '#c0c0c0';
-    this.connectionArrowColor = '#c0c0c0';
-    this.connectionArrowLength = 12;
-    this.textSize = 15;
-    this.textFont = 'Consolas';
-  }
-
-  backgroundColor: string;
-  smallStepGridColor: string;
-  bigStepGridColor: string;
-  nodeColor: string;
-  nodeBorderColor: string;
-  nodeHoveredBorderColor: string;
-  nodeTextColor: string;
-  connectionColor: string;
-  connectionArrowColor: string;
-  connectionArrowLength: number;
-  textSize: number;
-  textFont: string;
-}
-
 class View implements IViewModelObserver {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
@@ -676,9 +679,6 @@ class View implements IViewModelObserver {
     
     // disable native context menu
     canvas.addEventListener('contextmenu', (event) => event.preventDefault());
-
-    // style
-    this.style = new ViewStyle();
   }
 
   draw(): void {
@@ -687,7 +687,7 @@ class View implements IViewModelObserver {
     this.canvas.height = window.innerHeight;
 
     // draw background
-    this.ctx.fillStyle = this.style.backgroundColor;
+    this.ctx.fillStyle = this.viewModel.getViewStyle().backgroundColor;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // draw grid
@@ -721,7 +721,7 @@ class View implements IViewModelObserver {
     // get starting position of grid
     const startingPosition = { x: -viewportPosition.x % gridSize, y: -viewportPosition.y % gridSize };
     // draw small step grid
-    this.ctx.strokeStyle = this.style.smallStepGridColor;
+    this.ctx.strokeStyle = this.viewModel.getViewStyle().smallStepGridColor;
     this.ctx.lineWidth = 1;
     for (var x = startingPosition.x; x < canvasWidth; x += gridSize) {
       this.ctx.beginPath();
@@ -736,7 +736,7 @@ class View implements IViewModelObserver {
       this.ctx.stroke();
     }
     // draw big step grid
-    this.ctx.strokeStyle = this.style.bigStepGridColor;
+    this.ctx.strokeStyle = this.viewModel.getViewStyle().bigStepGridColor;
     this.ctx.lineWidth = 2;
     const bigStepStartingPosition = { x: -viewportPosition.x % (gridSize * 5), y: -viewportPosition.y % (gridSize * 5) };
     for (var x = bigStepStartingPosition.x; x < canvasWidth; x += gridSize * 5) {
@@ -757,22 +757,22 @@ class View implements IViewModelObserver {
     // get rectangle
     const rectangle = this.viewModel.getRectangleInViewport(index);
     // fill rect
-    this.ctx.fillStyle = this.style.nodeColor;
+    this.ctx.fillStyle = this.viewModel.getViewStyle().nodeColor;
     this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     // draw rectangle frame (red frame for hovered node)
     if (index === this.viewModel.getHoveredNode()) {
-      this.ctx.strokeStyle = this.style.nodeHoveredBorderColor;
+      this.ctx.strokeStyle = this.viewModel.getViewStyle().nodeHoveredBorderColor;
     } else {
-      this.ctx.strokeStyle =  this.style.nodeBorderColor;
+      this.ctx.strokeStyle =  this.viewModel.getViewStyle().nodeBorderColor;
     }
     
     this.ctx.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     // get name
     const name = this.viewModel.getModel().getName(index);
     // draw name
-    const textSize = this.style.textSize * this.viewModel.getZoom();
-    this.ctx.fillStyle = this.style.nodeTextColor;
-    this.ctx.font = `${textSize}px ${this.style.textFont}`;
+    const textSize = this.viewModel.getViewStyle().textSize * this.viewModel.getZoom();
+    this.ctx.fillStyle = this.viewModel.getViewStyle().nodeTextColor;
+    this.ctx.font = `${textSize}px ${this.viewModel.getViewStyle().textFont}`;
     const textPosx = rectangle.x + rectangle.width / 2 - this.ctx.measureText(name).width / 2;
     const textPosy = rectangle.y + rectangle.height / 2 + textSize / 3.5;
     this.ctx.fillText(name, textPosx, textPosy);
@@ -795,15 +795,15 @@ class View implements IViewModelObserver {
     const toConnectionPoint = this.getConnectionPoint(toRectangle, fromRectangle);
     // draw line
     this.ctx.lineWidth = 1;
-    this.ctx.strokeStyle = this.style.connectionColor;
+    this.ctx.strokeStyle = this.viewModel.getViewStyle().connectionColor;
     this.ctx.beginPath();
     this.ctx.moveTo(fromConnectionPoint.x, fromConnectionPoint.y);
     this.ctx.lineTo(toConnectionPoint.x, toConnectionPoint.y);
     this.ctx.stroke();
     // draw arrow (filled triangle with proper orientation)
     const angle = Math.atan2(toConnectionPoint.y - fromConnectionPoint.y, toConnectionPoint.x - fromConnectionPoint.x);
-    const arrowLength = this.style.connectionArrowLength;
-    this.ctx.fillStyle = this.style.connectionArrowColor;
+    const arrowLength = this.viewModel.getViewStyle().connectionArrowLength;
+    this.ctx.fillStyle = this.viewModel.getViewStyle().connectionArrowColor;
     this.ctx.beginPath();
     this.ctx.moveTo(toConnectionPoint.x, toConnectionPoint.y);
     this.ctx.lineTo(toConnectionPoint.x - arrowLength * Math.cos(angle - Math.PI / 6), toConnectionPoint.y - arrowLength * Math.sin(angle - Math.PI / 6));
@@ -924,7 +924,6 @@ class View implements IViewModelObserver {
   private viewModel: ViewModel;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private style: ViewStyle;
 
   // if there is an active controller it will receive all events
   // if there is no active controller then all events will be passed to all controllers until one 
