@@ -288,6 +288,12 @@ class ViewModel {
     return this.zoom;
   }
 
+  getMousePositionInModel(event: MouseEvent): { x: number, y: number } {
+    const viewportPosition = this.viewportPosition;
+    const zoom = this.zoom;
+    return { x: (event.clientX + viewportPosition.x) / zoom, y: (event.clientY + viewportPosition.y) / zoom };
+  }
+
   // Mutators
   registerObserver(observer: IViewModelObserver): void {
     this.observers.push(observer);
@@ -319,9 +325,11 @@ class ViewModel {
   }
 
   setHoveredNode(index: number): void {
-    this.hoveredNode = index;
-    this.observers.forEach(observer => observer.onHoveredNodeChanged());
-    this.observers.forEach(observer => observer.onModelChanged());
+    if (this.hoveredNode !== index) {
+      this.hoveredNode = index;
+      this.observers.forEach(observer => observer.onHoveredNodeChanged());
+      this.observers.forEach(observer => observer.onModelChanged());
+    }
   }
 
   setRenamedNode(index: number): void {
@@ -363,6 +371,7 @@ class ViewModel {
 interface IViewController {
   isActive(): boolean;
   onOtherControllerActivated(): void;
+  onModelChanged(): void;
   onMouseDown(_event: MouseEvent): void;
   onMouseMove(_event: MouseEvent): void;
   onMouseUp(_event: MouseEvent): void;
@@ -382,22 +391,20 @@ class NodeHoverController implements IViewController {
 
   onOtherControllerActivated(): void {}
 
+  onModelChanged(): void {
+    // get cursor position
+    const cursorPosition = { x: this.lastEvent.clientX, y: this.lastEvent.clientY };
+    // if mouse is moving then update hovered node
+    this.updateHoveredNode(cursorPosition);
+  }
+
   onMouseDown(_event: MouseEvent): void {}
 
   onMouseMove(event: MouseEvent): void {
-    // if mouse is hovered over a node then set it as hovered node
-    const displayedParent = this.viewModel.getDisplayedParent();
-    const children = this.viewModel.getModel().getChildren(displayedParent);
-    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
-    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
-        && event.clientX <= rectangle.x + rectangle.width 
-        && event.clientY >= rectangle.y 
-        && event.clientY <= rectangle.y + rectangle.height);
-    if (index !== -1) {
-      this.viewModel.setHoveredNode(children[index]);
-    } else {
-      this.viewModel.setHoveredNode(-1);
-    }
+    // save event
+    this.lastEvent = event;
+    // if mouse is moving then update hovered node
+    this.updateHoveredNode({ x: event.clientX, y: event.clientY });
   }
 
   onMouseUp(_event: MouseEvent): void {}
@@ -410,8 +417,26 @@ class NodeHoverController implements IViewController {
 
   onKeyup(_event: KeyboardEvent): void {}
 
+  private updateHoveredNode(cursorPosition: { x: number, y: number }): void {
+    // if mouse is hovered over a node then set it as hovered node
+    const displayedParent = this.viewModel.getDisplayedParent();
+    const children = this.viewModel.getModel().getChildren(displayedParent);
+    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+    const index = rectangles.findIndex(rectangle => cursorPosition.x >= rectangle.x 
+        && cursorPosition.x <= rectangle.x + rectangle.width 
+        && cursorPosition.y >= rectangle.y 
+        && cursorPosition.y <= rectangle.y + rectangle.height);
+    if (index !== -1) {
+      this.viewModel.setHoveredNode(children[index]);
+    } else {
+      this.viewModel.setHoveredNode(-1);
+    }
+  }
+
+
   // Private members
   private viewModel: ViewModel;
+  private lastEvent: MouseEvent = new MouseEvent('mousemove');
 }
 
 class NodeMoveController implements IViewController {
@@ -423,6 +448,8 @@ class NodeMoveController implements IViewController {
   isActive(): boolean { return this.active; }
 
   onOtherControllerActivated(): void {}
+
+  onModelChanged(): void {}
 
   onMouseDown(_event: MouseEvent): void {}
 
@@ -488,6 +515,8 @@ class ViewportMoveController implements IViewController {
 
   onOtherControllerActivated(): void {}
 
+  onModelChanged(): void {}
+
   onMouseDown(event: MouseEvent): void {
     // if controller is not active, mouse is moving and RMB is pressed then set controller active
     if (!this.active && event.buttons === 2) {
@@ -538,6 +567,8 @@ class ViewportZoomController implements IViewController {
 
   onOtherControllerActivated(): void {}
 
+  onModelChanged(): void {}
+
   onMouseDown(_event: MouseEvent): void {}
 
   onMouseMove(_event: MouseEvent): void {}
@@ -574,7 +605,7 @@ class ViewportZoomController implements IViewController {
   private viewModel: ViewModel;
 }
 
-class NodeRenameController implements IViewController {
+class NodeCreationAndRenameController implements IViewController {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
     this.canvas = canvas;
@@ -589,6 +620,8 @@ class NodeRenameController implements IViewController {
       this.finishRename();
     }
   }
+
+  onModelChanged(): void {}
 
   onMouseDown(_event: MouseEvent): void {}
 
@@ -617,7 +650,22 @@ class NodeRenameController implements IViewController {
           && event.clientX <= rectangle.x + rectangle.width 
           && event.clientY >= rectangle.y 
           && event.clientY <= rectangle.y + rectangle.height);
-      if (index !== -1) {
+      if (index === -1) {
+        // create new node with size 100x50 and its center at the mouse position and start rename
+        const mousePosition = this.viewModel.getMousePositionInModel(event);
+        var rectangle = new Rectangle(mousePosition.x - 50, mousePosition.y - 25, 100, 50);
+        // snap to grid
+        const gridSize = this.viewModel.getGridSize() / this.viewModel.getZoom();
+        rectangle.x = Math.round(rectangle.x / gridSize) * gridSize;
+        rectangle.y = Math.round(rectangle.y / gridSize) * gridSize;
+        const node = this.viewModel.getModel().createNode();
+        this.viewModel.getModel().setRectangle(node, rectangle);
+        const displayedParent = this.viewModel.getDisplayedParent();
+        this.viewModel.getModel().addChild(displayedParent, node);
+        this.newNode = true;
+        this.startRename(node);
+      }
+      else {
         this.startRename(children[index]);
       }
     }
@@ -644,6 +692,7 @@ class NodeRenameController implements IViewController {
     // spawn input element
     this.input = document.createElement('input');
     this.input.id = 'rename-input';
+    this.input.setAttribute('autocomplete', 'off');
     this.input.type = 'text';
     this.input.style.position = 'absolute';
     this.input.style.left = `${rectangle.x}px`;
@@ -683,12 +732,19 @@ class NodeRenameController implements IViewController {
   private finishRename(): void {
     // set new name in the model and then cancel rename
     this.viewModel.getModel().setName(this.renamedNode, this.input?.value || '');
+    // set newNode to false so cancelRename doesn't destroy the node
+    this.newNode = false;
     this.cancelRename();
   }
 
   private cancelRename(): void {
+    // if new ndoe is set then destroy it
+    if (this.newNode) {
+      this.viewModel.getModel().destroyNode(this.renamedNode);
+    }
     this.active = false;
     this.renamedNode = -1;
+    this.newNode = false;
     this.viewModel.setRenamedNode(-1);
     // remove input element
     if (this.input !== null) {
@@ -701,6 +757,7 @@ class NodeRenameController implements IViewController {
   private viewModel: ViewModel;
   private canvas: HTMLCanvasElement;
   private active: boolean = false;
+  private newNode: boolean = false;
   private renamedNode: number = -1;
   private input: HTMLInputElement | null = null;
 }
@@ -719,7 +776,7 @@ class View implements IViewModelObserver {
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new NodeHoverController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
-    this.controllers.push(new NodeRenameController(this.viewModel, this.canvas));
+    this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
 
     // add event listeners
     // redraw on resize
@@ -965,6 +1022,7 @@ class View implements IViewModelObserver {
 
   // IViewModelObserver
   onModelChanged(): void {
+    this.onEvent(controller => controller.onModelChanged());
     this.draw();
   }
 
