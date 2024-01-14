@@ -314,13 +314,16 @@ class ViewModel {
   private zoom: number = 1;
 }
 
-class IViewController {
-  isActive(): boolean { return false; }
-  onOtherControllerActivated(): void {}
-  onMouseDown(_event: MouseEvent): void {}
-  onMouseMove(_event: MouseEvent): void {}
-  onMouseUp(_event: MouseEvent): void {}
-  wheel(_event: WheelEvent): void {}
+interface IViewController {
+  isActive(): boolean;
+  onOtherControllerActivated(): void;
+  onMouseDown(_event: MouseEvent): void;
+  onMouseMove(_event: MouseEvent): void;
+  onMouseUp(_event: MouseEvent): void;
+  onWheel(_event: WheelEvent): void;
+  onDblClick(_event: MouseEvent): void;
+  onKeydown(_event: KeyboardEvent): void;
+  onKeyup(_event: KeyboardEvent): void;
 }
 
 class NodeHoverController implements IViewController {
@@ -353,7 +356,13 @@ class NodeHoverController implements IViewController {
 
   onMouseUp(_event: MouseEvent): void {}
 
-  wheel(_event: WheelEvent): void {}
+  onWheel(_event: WheelEvent): void {}
+
+  onDblClick(_event: MouseEvent): void {}
+
+  onKeydown(_event: KeyboardEvent): void {}
+
+  onKeyup(_event: KeyboardEvent): void {}
 
   // Private members
   private viewModel: ViewModel;
@@ -407,8 +416,13 @@ class NodeMoveController implements IViewController {
     this.startingRectangle = new Rectangle(0, 0, 0, 0);
   }
 
-  wheel(_event: WheelEvent): void {}
+  onWheel(_event: WheelEvent): void {}
 
+  onDblClick(_event: MouseEvent): void {}
+
+  onKeydown(_event: KeyboardEvent): void {}
+
+  onKeyup(_event: KeyboardEvent): void {}
 
   // Private members
   private viewModel: ViewModel;
@@ -453,7 +467,13 @@ class ViewportMoveController implements IViewController {
     this.startingViewportPosition = { x: 0, y: 0 };
   }
 
-  wheel(_event: WheelEvent): void {}
+  onWheel(_event: WheelEvent): void {}
+
+  onDblClick(_event: MouseEvent): void {}
+
+  onKeydown(_event: KeyboardEvent): void {}
+
+  onKeyup(_event: KeyboardEvent): void {}
 
   // Private members
   private viewModel: ViewModel;
@@ -478,7 +498,7 @@ class ViewportZoomController implements IViewController {
 
   onMouseUp(_event: MouseEvent): void {}
 
-  wheel(event: WheelEvent): void {
+  onWheel(event: WheelEvent): void {
     // get zoom
     var zoom = this.viewModel.getZoom();
     // calculate new zoom
@@ -498,8 +518,98 @@ class ViewportZoomController implements IViewController {
     this.viewModel.setZoom(zoom);
   }
 
+  onDblClick(_event: MouseEvent): void {}
+
+  onKeydown(_event: KeyboardEvent): void {}
+
+  onKeyup(_event: KeyboardEvent): void {}
+
   // Private members
   private viewModel: ViewModel;
+}
+
+class NodeRenameController implements IViewController {
+  constructor(viewModel: ViewModel) {
+    this.viewModel = viewModel;
+  }
+
+  // IViewController
+  isActive(): boolean { return this.active; }
+
+  onOtherControllerActivated(): void {}
+
+  onMouseDown(_event: MouseEvent): void {}
+
+  onMouseMove(_event: MouseEvent): void {}
+
+  onMouseUp(_event: MouseEvent): void {}
+
+  onWheel(_event: WheelEvent): void {}
+
+  onDblClick(event: MouseEvent): void {
+    // if double click is performed on a node then set controller active
+    const displayedParent = this.viewModel.getDisplayedParent();
+    const children = this.viewModel.getModel().getChildren(displayedParent);
+    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
+        && event.clientX <= rectangle.x + rectangle.width 
+        && event.clientY >= rectangle.y 
+        && event.clientY <= rectangle.y + rectangle.height);
+    if (index !== -1) {
+      this.active = true;
+      this.renamedNode = children[index];
+      this.newName = this.viewModel.getModel().getName(this.renamedNode);
+      // spawn input element
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.style.position = 'absolute';
+      input.style.left = `${event.clientX}px`;
+      input.style.top = `${event.clientY}px`;
+      input.style.width = `${rectangles[index].width}px`;
+      input.style.height = `${rectangles[index].height}px`;
+      input.style.backgroundColor = 'transparent';
+      input.style.border = 'none';
+      input.style.outline = 'none';
+      
+      input.value = this.newName;
+      input.focus();
+      input.select();
+      input.addEventListener('input', (event) => {
+        this.newName = (event.target as HTMLInputElement).value;
+      });
+      input.addEventListener('blur', () => {
+        this.active = false;
+        this.renamedNode = -1;
+        this.newName = '';
+        document.body.removeChild(input);
+      });
+      document.body.appendChild(input);
+    }
+  }
+
+  onKeydown(_event: KeyboardEvent): void {}
+
+  onKeyup(event: KeyboardEvent): void {
+    // if controller is active and enter is pressed then rename node
+    if (this.active && event.key === 'Enter') {
+      this.viewModel.getModel().setName(this.renamedNode, this.newName);
+      this.active = false;
+      this.renamedNode = -1;
+      this.newName = '';
+    }
+    // if controller is active and escape is pressed then cancel renaming
+    if (this.active && event.key === 'Escape') {
+      this.active = false;
+      this.renamedNode = -1;
+      this.newName = '';
+    }
+  }
+
+  // Private members
+  private viewModel: ViewModel;
+  private active: boolean = false;
+  private renamedNode: number = -1;
+  private newName: string = '';
 }
 
 class ViewStyle {
@@ -547,6 +657,7 @@ class View implements IViewModelObserver {
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new NodeHoverController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
+    this.controllers.push(new NodeRenameController(this.viewModel));
 
     // add event listeners
     // redraw on resize
@@ -556,7 +667,12 @@ class View implements IViewModelObserver {
     canvas.addEventListener('mousedown', (event) => this.onEvent(controller => controller.onMouseDown(event)));
     canvas.addEventListener('mousemove', (event) => this.onEvent(controller => controller.onMouseMove(event)));
     canvas.addEventListener('mouseup', (event) => this.onEvent(controller => controller.onMouseUp(event)));
-    canvas.addEventListener('wheel', (event) => this.onEvent(controller => controller.wheel(event)));
+    canvas.addEventListener('wheel', (event) => this.onEvent(controller => controller.onWheel(event)));
+    canvas.addEventListener('dblclick', (event) => this.onEvent(controller => controller.onDblClick(event)));
+
+    // keyboard events
+    window.addEventListener('keydown', (event) => this.onEvent(controller => controller.onKeydown(event)));
+    window.addEventListener('keyup', (event) => this.onEvent(controller => controller.onKeyup(event)));
     
     // disable native context menu
     canvas.addEventListener('contextmenu', (event) => event.preventDefault());
