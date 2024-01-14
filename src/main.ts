@@ -721,7 +721,15 @@ class View implements IViewModelObserver {
     const minDistance = Math.min(...distances);
     const index = distances.indexOf(minDistance);
     const intersection = intersections[index] as { x: number, y: number };
-    return intersection;
+    // if intersection is null then move from rectangle one pixel to the right and try again
+    if (intersection === null) {
+      fromRectangle.x += 1;
+      return this.getConnectionPoint(fromRectangle, toRectangle);
+    }
+    else
+    {
+      return intersection;
+    }
   }
 
   private getIntersection(line1: { startx: number, starty: number, endx: number, endy: number }, 
