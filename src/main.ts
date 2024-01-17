@@ -206,6 +206,7 @@ class Model {
 interface IViewModelObserver extends IModelObserver {
   onDisplayedParentChanged(): void
   onHoveredNodeChanged(): void
+  onSelectedNodesChanged(): void
   onRenamedNodeChanged(): void
   onGridSizeChanged(): void
   onViewportPositionChanged(): void
@@ -221,6 +222,7 @@ class ViewStyle {
     this.nodeColor = '#252526';
     this.nodeBorderColor = '#4e4e52';
     this.nodeHoveredBorderColor = '#007acc';
+    this.nodeSelectedBorderColor = '#007acc';
     this.nodeTextColor = '#c0c0c0';
     this.connectionColor = '#c0c0c0';
     this.connectionArrowColor = '#c0c0c0';
@@ -235,6 +237,7 @@ class ViewStyle {
   nodeColor: string;
   nodeBorderColor: string;
   nodeHoveredBorderColor: string;
+  nodeSelectedBorderColor: string;
   nodeTextColor: string;
   connectionColor: string;
   connectionArrowColor: string;
@@ -270,6 +273,10 @@ class ViewModel {
 
   getHoveredNode(): number {
     return this.hoveredNode;
+  }
+
+  getSelectedNodes(): number[] {
+    return this.selectedNodes;
   }
 
   getRenamedNode(): number {
@@ -332,6 +339,12 @@ class ViewModel {
     }
   }
 
+  setSelectedNodes(indexes: number[]): void {
+    this.selectedNodes = indexes;
+    this.observers.forEach(observer => observer.onSelectedNodesChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
   setRenamedNode(index: number): void {
     this.renamedNode = index;
     this.observers.forEach(observer => observer.onRenamedNodeChanged());
@@ -362,6 +375,7 @@ class ViewModel {
   private observers: IViewModelObserver[] = [];
   private displayedParent: number = 0;
   private hoveredNode: number = -1;
+  private selectedNodes: number[] = [];
   private renamedNode: number = -1;
   private viewportPosition: { x: number, y: number } = { x: 0, y: 0 };
   private gridSize: number = 10;
@@ -772,6 +786,66 @@ class NodeCreationAndRenameController implements IViewController {
   private input: HTMLInputElement | null = null;
 }
 
+// set node as selected if mouse is pressed on it
+// add node as selected if mouse is pressed on it and ctrl is pressed
+// remove node from selected if already selected and mouse is pressed on it and ctrl is pressed
+// set no node as selected if mouse is pressed on empty space
+class SelectionHandler implements IViewController {
+  constructor(viewModel: ViewModel) {
+    this.viewModel = viewModel;
+  }
+
+  // IViewController
+  isActive(): boolean { return false; }
+
+  onOtherControllerActivated(): void {}
+
+  onModelChanged(): void {}
+
+  onMouseDown(event: MouseEvent): void {
+    // if mouse is pressed on a node then select it
+    const displayedParent = this.viewModel.getDisplayedParent();
+    const children = this.viewModel.getModel().getChildren(displayedParent);
+    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
+        && event.clientX <= rectangle.x + rectangle.width 
+        && event.clientY >= rectangle.y 
+        && event.clientY <= rectangle.y + rectangle.height);
+    if (index !== -1) {
+      // if ctrl is pressed then add node to selection
+      if (event.ctrlKey) {
+        const selectedNodes = this.viewModel.getSelectedNodes();
+        const nodeIndex = selectedNodes.indexOf(children[index]);
+        if (nodeIndex === -1) {
+          selectedNodes.push(children[index]);
+          this.viewModel.setSelectedNodes(selectedNodes);
+        }
+      } else {
+        // if ctrl is not pressed then set node as selected
+        this.viewModel.setSelectedNodes([children[index]]);
+      }
+    } else {
+      // if mouse is pressed on empty space then deselect all nodes
+      this.viewModel.setSelectedNodes([]);
+    }
+  }
+
+  onMouseMove(_event: MouseEvent): void {}
+
+  onMouseUp(_event: MouseEvent): void {}
+
+  onWheel(_event: WheelEvent): void {}
+
+  onDblClick(_event: MouseEvent): void {}
+
+  onKeydown(_event: KeyboardEvent): void {}
+
+  onKeyup(_event: KeyboardEvent): void {}
+
+  // Private members
+  private viewModel: ViewModel;
+}
+
 class View implements IViewModelObserver {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
@@ -787,6 +861,7 @@ class View implements IViewModelObserver {
     this.controllers.push(new NodeHoverController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
+    this.controllers.push(new SelectionHandler(this.viewModel));
 
     // add event listeners
     // redraw on resize
@@ -885,14 +960,22 @@ class View implements IViewModelObserver {
     // fill rect
     this.ctx.fillStyle = this.viewModel.getViewStyle().nodeColor;
     this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
-    // draw rectangle frame (red frame for hovered node)
-    if (index === this.viewModel.getHoveredNode()) {
-      this.ctx.strokeStyle = this.viewModel.getViewStyle().nodeHoveredBorderColor;
-    } else {
-      this.ctx.strokeStyle =  this.viewModel.getViewStyle().nodeBorderColor;
+    // draw rectangle frame (use different color if node is selected)
+    if (this.viewModel.getSelectedNodes().includes(index)) {
+      this.ctx.strokeStyle = this.viewModel.getViewStyle().nodeSelectedBorderColor;
     }
-    
+    else {
+      this.ctx.strokeStyle = this.viewModel.getViewStyle().nodeBorderColor;
+    }
+    this.ctx.lineWidth = 1;
     this.ctx.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+
+    // draw hover rectangle with one pixel bigger in every direction
+    if (this.viewModel.getHoveredNode() === index) {
+      this.ctx.strokeStyle = this.viewModel.getViewStyle().nodeHoveredBorderColor;
+      this.ctx.lineWidth = 1;
+      this.ctx.strokeRect(rectangle.x - 1, rectangle.y - 1, rectangle.width + 2, rectangle.height + 2);
+    }
 
     // skip drawing name of node is renamed
     if (index !== this.viewModel.getRenamedNode()) {
@@ -1046,6 +1129,7 @@ class View implements IViewModelObserver {
   onConnectionRemoved(_from: number, _to: number): void {}
   onDisplayedParentChanged(): void {}
   onHoveredNodeChanged(): void {}
+  onSelectedNodesChanged(): void {}
   onRenamedNodeChanged(): void {}
   onGridSizeChanged(): void {}
   onViewportPositionChanged(): void {}
