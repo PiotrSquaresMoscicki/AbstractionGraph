@@ -633,7 +633,12 @@ class NodeCreationAndRenameController implements IViewController {
       const rectangle = this.viewModel.getRectangleInViewport(this.renamedNode);
       if (_event.clientX < rectangle.x || _event.clientX > rectangle.x + rectangle.width 
           || _event.clientY < rectangle.y || _event.clientY > rectangle.y + rectangle.height) {
-        this.finishRename();
+        // if new name is empty then cancel rename
+        if (this.input?.value === '') {
+          this.cancelRename();
+        } else {
+          this.finishRename();
+        }
       }
     }
   }
@@ -676,7 +681,12 @@ class NodeCreationAndRenameController implements IViewController {
   onKeyup(event: KeyboardEvent): void {
     // if enter is pressed then finish rename
     if (this.active && event.key === 'Enter') {
-      this.finishRename();
+      // if new name is empty then cancel rename
+      if (this.input?.value === '') {
+        this.cancelRename();
+      } else {
+        this.finishRename();
+      }
     }
     // if escape is pressed then cancel rename
     if (this.active && event.key === 'Escape') {
