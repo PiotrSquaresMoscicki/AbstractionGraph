@@ -529,7 +529,6 @@ class NodeMoveController extends BaseController {
       this.startingRectangles = this.viewModel.getSelectedNodes().map(node => this.viewModel.getRectangleInViewport(node));
       this.draggedNodes = this.viewModel.getSelectedNodes().slice();
     } else if (this.active) {
-      console.log ('move');
       // move node
       const deltaX = event.clientX - this.startingCursorPosition.x;
       const deltaY = event.clientY - this.startingCursorPosition.y;
@@ -642,16 +641,16 @@ class NodeCreationAndRenameController extends BaseController {
   // Start IViewController
 
   onOtherControllerActivated(): void {
-    // if controller is active then cancel rename
-    if (this.active) {
+    // if controller is editing then cancel rename
+    if (this.editing) {
       this.finishRename();
     }
     this.readyForActivation = false;
   }
 
   onMouseUp(event: MouseEvent): void {
-    // if controller is active and mouse up is performed outside of the renamed node then finish rename
-    if (this.active) {
+    // if controller is editing and mouse up is performed outside of the renamed node then finish rename
+    if (this.editing) {
       const rectangle = this.viewModel.getRectangleInViewport(this.renamedNode);
       if (event.clientX < rectangle.x || event.clientX > rectangle.x + rectangle.width 
           || event.clientY < rectangle.y || event.clientY > rectangle.y + rectangle.height) {
@@ -663,7 +662,7 @@ class NodeCreationAndRenameController extends BaseController {
         }
       }
     } else if (this.readyForActivation) {
-      // if double click is performed on a node then set controller active
+      // if double click is performed on a node then set controller editing
       const displayedParent = this.viewModel.getDisplayedParent();
       const children = this.viewModel.getModel().getChildren(displayedParent);
       const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
@@ -698,7 +697,7 @@ class NodeCreationAndRenameController extends BaseController {
 
   onKeyup(event: KeyboardEvent): void {
     // if enter is pressed then finish rename
-    if (this.active && event.key === 'Enter') {
+    if (this.editing && event.key === 'Enter') {
       // if new name is empty then cancel rename
       if (this.input?.value === '') {
         this.cancelRename();
@@ -707,13 +706,13 @@ class NodeCreationAndRenameController extends BaseController {
       }
     }
     // if escape is pressed then cancel rename
-    if (this.active && event.key === 'Escape') {
+    if (this.editing && event.key === 'Escape') {
       this.cancelRename();
     }
   }
 
   private startRename(node: number): void {
-    this.active = true;
+    this.editing = true;
     this.renamedNode = node;
     this.viewModel.setRenamedNode(this.renamedNode);
     const rectangle = this.viewModel.getRectangleInViewport(this.renamedNode);
@@ -762,6 +761,8 @@ class NodeCreationAndRenameController extends BaseController {
     this.viewModel.getModel().setName(this.renamedNode, this.input?.value || '');
     // set newNode to false so cancelRename doesn't destroy the node
     this.newNode = false;
+    // redraw
+    this.observers.forEach(observer => observer.onRedrawRequested());
     this.cancelRename();
   }
 
@@ -770,7 +771,7 @@ class NodeCreationAndRenameController extends BaseController {
     if (this.newNode) {
       this.viewModel.getModel().destroyNode(this.renamedNode);
     }
-    this.active = false;
+    this.editing = false;
     this.readyForActivation = false;
     this.renamedNode = -1;
     this.newNode = false;
@@ -786,6 +787,7 @@ class NodeCreationAndRenameController extends BaseController {
 
   // Private members
   private viewModel: ViewModel;
+  private editing: boolean = false;
   private readyForActivation: boolean = false;
   private canvas: HTMLCanvasElement;
   private newNode: boolean = false;
@@ -861,6 +863,14 @@ class ConnectionCreationController extends BaseController {
 
   // Start IViewController
 
+  onAnotherControllerActivated(): void {
+    // if controller is active then finish connection
+    if (this.active) {
+      this.finishConnection();
+    }
+    this.readyForActivation = false;
+  }
+
   onDraw(viewContext: IViewContext): void {
     if (this.active) {
       // draw connection lines from all selected nodes to the mouse cursor
@@ -893,11 +903,15 @@ class ConnectionCreationController extends BaseController {
   onDblPress(_event: MouseEvent): void {
     // if controller is not active and any node is selected then set controller active
     if (!this.active && this.viewModel.getSelectedNodes().length > 0) {
-      this.startConnection();
+      this.readyForActivation = true;
     }
   }
 
   onMouseMove(_event: MouseEvent): void {
+    if (this.readyForActivation) {
+      this.active = true;
+    }
+
     if (this.active) {
       // save event
       this.lastMouseMoveEvent = _event;
@@ -911,15 +925,12 @@ class ConnectionCreationController extends BaseController {
       // if mouse is released after double click then finish connection
       this.finishConnection();
     }
+    this.readyForActivation = false;
   }
 
   // End IViewController
 
   // Private functions
-
-  private startConnection(): void {
-    this.active = true;
-  }
 
   private finishConnection(): void {
     // get hovered node (but not from model as hover controller is not active when this controller
@@ -943,10 +954,12 @@ class ConnectionCreationController extends BaseController {
     }
     // set controller inactive
     this.active = false;
+    this.readyForActivation = false;
   }
 
   // Private members
   private viewModel: ViewModel;
+  private readyForActivation: boolean = false;
   private lastMouseMoveEvent: MouseEvent = new MouseEvent('mousemove');
 }
 
@@ -967,10 +980,10 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     this.controllers.push(new NodeHoverController(this.viewModel));
     this.controllers.push(new SelectionHandler(this.viewModel));
     this.controllers.push(new ViewportMoveController(this.viewModel));
+    this.controllers.push(new ConnectionCreationController(this.viewModel));
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
-    this.controllers.push(new ConnectionCreationController(this.viewModel));
 
     // register as observer of controllers
     this.controllers.forEach(controller => controller.registerObserver(this));
