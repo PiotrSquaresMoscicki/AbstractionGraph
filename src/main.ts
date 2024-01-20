@@ -55,6 +55,9 @@
 
 // The app uses model, view, view model (MVVM) architecture.
 
+//**************************************************************************************************
+// model
+//**************************************************************************************************
 class Rectangle {
   constructor(x: number, y: number, width: number, height: number) {
     this.x = x;
@@ -203,6 +206,9 @@ class Model {
   private connections: Connection[] = [];
 }
 
+//**************************************************************************************************
+// view model
+//**************************************************************************************************
 interface IViewModelObserver extends IModelObserver {
   onDisplayedParentChanged(): void
   onHoveredNodeChanged(): void
@@ -382,12 +388,22 @@ class ViewModel {
   private zoom: number = 1;
 }
 
+//**************************************************************************************************
+// view interfaces
+//**************************************************************************************************
 interface IViewContext {
   getContext(): CanvasRenderingContext2D;
   drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }): void;
 }
 
+interface IViewControllerObserver {
+  onControllerActivated(controller: IViewController): void;
+  onRedrawRequested(): void;
+}
+
 interface IViewController {
+  registerObserver(observer: IViewControllerObserver): void;
+  unregisterObserver(observer: IViewControllerObserver): void;
   isActive(): boolean;
   onDraw(viewContext: IViewContext): void;
   onOtherControllerActivated(): void;
@@ -401,17 +417,46 @@ interface IViewController {
   onKeyup(_event: KeyboardEvent): void;
 }
 
-class NodeHoverController implements IViewController {
+//**************************************************************************************************
+// controllers
+//**************************************************************************************************
+class BaseController implements IViewController {
+  // Start IViewController
+
+  registerObserver(observer: IViewControllerObserver): void {
+    this.observers.push(observer);
+  }
+
+  unregisterObserver(observer: IViewControllerObserver): void {
+    this.observers = this.observers.filter(item => item !== observer);
+  }
+
+  isActive(): boolean { return this.active; }
+  onDraw(_viewContext: IViewContext): void {}
+  onOtherControllerActivated(): void {}
+  onModelChanged(): void {}
+  onMouseDown(_event: MouseEvent): void {}
+  onMouseMove(_event: MouseEvent): void {}
+  onMouseUp(_event: MouseEvent): void {}
+  onWheel(_event: WheelEvent): void {}
+  onDblClick(_event: MouseEvent): void {}
+  onKeydown(_event: KeyboardEvent): void {}
+  onKeyup(_event: KeyboardEvent): void {}
+
+  // End IViewController
+
+  // Protected members
+  protected active: boolean = false;
+  protected observers: IViewControllerObserver[] = [];
+}
+
+class NodeHoverController extends BaseController {
   constructor(viewModel: ViewModel) {
+    super();
     this.viewModel = viewModel;
   }
 
-  // IViewController
-  isActive(): boolean { return false; }
-
-  onDraw(_viewContext: IViewContext): void {}
-
-  onOtherControllerActivated(): void {}
+  // Start IViewController
 
   onModelChanged(): void {
     // get cursor position
@@ -420,24 +465,12 @@ class NodeHoverController implements IViewController {
     this.updateHoveredNode(cursorPosition);
   }
 
-  onMouseDown(_event: MouseEvent): void {}
-
   onMouseMove(event: MouseEvent): void {
     // save event
     this.lastEvent = event;
     // if mouse is moving then update hovered node
     this.updateHoveredNode({ x: event.clientX, y: event.clientY });
   }
-
-  onMouseUp(_event: MouseEvent): void {}
-
-  onWheel(_event: WheelEvent): void {}
-
-  onDblClick(_event: MouseEvent): void {}
-
-  onKeydown(_event: KeyboardEvent): void {}
-
-  onKeyup(_event: KeyboardEvent): void {}
 
   private updateHoveredNode(cursorPosition: { x: number, y: number }): void {
     // if mouse is hovered over a node then set it as hovered node
@@ -455,38 +488,38 @@ class NodeHoverController implements IViewController {
     }
   }
 
+  // End IViewController
 
   // Private members
   private viewModel: ViewModel;
   private lastEvent: MouseEvent = new MouseEvent('mousemove');
 }
 
-class NodeMoveController implements IViewController {
+class NodeMoveController extends BaseController {
   constructor(viewModel: ViewModel) {
+    super();
     this.viewModel = viewModel;
   }
 
-  // IViewController
-  isActive(): boolean { return this.active; }
+  // Start IViewController
 
-  onDraw(_viewContext: IViewContext): void {}
-
-  onOtherControllerActivated(): void {}
-
-  onModelChanged(): void {}
-
-  onMouseDown(_event: MouseEvent): void {}
+  onMouseDown(event: MouseEvent): void {
+    this.startingCursorPosition = { x: event.clientX, y: event.clientY };
+  }
 
   onMouseMove(event: MouseEvent): void {
     // if controller is not active, mouse is moving, LMB is pressed and any node is selected then set controller active
-    if (!this.active && event.buttons === 1 && this.viewModel.getSelectedNodes().length > 0) {
+    // give user 5 px of tolerance
+    if (!this.active && event.buttons === 1 && this.viewModel.getSelectedNodes().length > 0
+      && (Math.abs(event.clientX - this.startingCursorPosition.x) > 5
+      || Math.abs(event.clientY - this.startingCursorPosition.y) > 5)) 
+    {
       this.active = true;
       this.startingCursorPosition = { x: event.clientX, y: event.clientY };
       this.startingRectangles = this.viewModel.getSelectedNodes().map(node => this.viewModel.getRectangleInViewport(node));
       this.draggedNodes = this.viewModel.getSelectedNodes().slice();
-    }
-    
-    if (this.active) {
+    } else if (this.active) {
+      console.log ('move');
       // move node
       const deltaX = event.clientX - this.startingCursorPosition.x;
       const deltaY = event.clientY - this.startingCursorPosition.y;
@@ -505,35 +538,22 @@ class NodeMoveController implements IViewController {
     this.draggedNodes = [];
   }
 
-  onWheel(_event: WheelEvent): void {}
-
-  onDblClick(_event: MouseEvent): void {}
-
-  onKeydown(_event: KeyboardEvent): void {}
-
-  onKeyup(_event: KeyboardEvent): void {}
+  // End IViewController
 
   // Private members
   private viewModel: ViewModel;
-  private active: boolean = false;
   private draggedNodes: number[] = [];
   private startingCursorPosition: { x: number, y: number } = { x: 0, y: 0 };
   private startingRectangles: Rectangle[] = [];
 }
 
-class ViewportMoveController implements IViewController {
+class ViewportMoveController extends BaseController {
   constructor(viewModel: ViewModel) {
+    super();
     this.viewModel = viewModel;
   }
 
-  // IViewController
-  isActive(): boolean { return this.active; }
-
-  onDraw(_viewContext: IViewContext): void {}
-
-  onOtherControllerActivated(): void {}
-
-  onModelChanged(): void {}
+  // Start IViewController
 
   onMouseDown(event: MouseEvent): void {
     // if controller is not active, mouse is moving and RMB is pressed then set controller active
@@ -560,40 +580,21 @@ class ViewportMoveController implements IViewController {
     this.startingViewportPosition = { x: 0, y: 0 };
   }
 
-  onWheel(_event: WheelEvent): void {}
-
-  onDblClick(_event: MouseEvent): void {}
-
-  onKeydown(_event: KeyboardEvent): void {}
-
-  onKeyup(_event: KeyboardEvent): void {}
+  // End IViewController
 
   // Private members
   private viewModel: ViewModel;
-  private active: boolean = false;
   private startingCursorPosition: { x: number, y: number } = { x: 0, y: 0 };
   private startingViewportPosition: { x: number, y: number } = { x: 0, y: 0 };
 }
 
-class ViewportZoomController implements IViewController {
+class ViewportZoomController extends BaseController {
   constructor(viewModel: ViewModel) {
+    super();
     this.viewModel = viewModel;
   }
 
-  // IViewController
-  isActive(): boolean { return false; }
-
-  onDraw(_viewContext: IViewContext): void {}
-
-  onOtherControllerActivated(): void {}
-
-  onModelChanged(): void {}
-
-  onMouseDown(_event: MouseEvent): void {}
-
-  onMouseMove(_event: MouseEvent): void {}
-
-  onMouseUp(_event: MouseEvent): void {}
+  // Start IViewController
 
   onWheel(event: WheelEvent): void {
     // get zoom
@@ -614,27 +615,21 @@ class ViewportZoomController implements IViewController {
     // set zoom
     this.viewModel.setZoom(zoom);
   }
-
-  onDblClick(_event: MouseEvent): void {}
-
-  onKeydown(_event: KeyboardEvent): void {}
-
-  onKeyup(_event: KeyboardEvent): void {}
+  
+  // End IViewController
 
   // Private members
   private viewModel: ViewModel;
 }
 
-class NodeCreationAndRenameController implements IViewController {
+class NodeCreationAndRenameController extends BaseController {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
+    super();
     this.viewModel = viewModel;
     this.canvas = canvas;
   }
 
-  // IViewController
-  isActive(): boolean { return false; }
-
-  onDraw(_viewContext: IViewContext): void {}
+  // Start IViewController
 
   onOtherControllerActivated(): void {
     // if controller is active then cancel rename
@@ -642,12 +637,6 @@ class NodeCreationAndRenameController implements IViewController {
       this.finishRename();
     }
   }
-
-  onModelChanged(): void {}
-
-  onMouseDown(_event: MouseEvent): void {}
-
-  onMouseMove(_event: MouseEvent): void {}
 
   onMouseUp(_event: MouseEvent): void {
     // if controller is active and mouse up is performed outside of the renamed node then finish rename
@@ -664,8 +653,6 @@ class NodeCreationAndRenameController implements IViewController {
       }
     }
   }
-
-  onWheel(_event: WheelEvent): void {}
 
   onDblClick(event: MouseEvent): void {
     if (!this.active) {
@@ -697,8 +684,6 @@ class NodeCreationAndRenameController implements IViewController {
       }
     }
   }
-
-  onKeydown(_event: KeyboardEvent): void {}
 
   onKeyup(event: KeyboardEvent): void {
     // if enter is pressed then finish rename
@@ -785,10 +770,11 @@ class NodeCreationAndRenameController implements IViewController {
     }
   }
 
+  // End IViewController
+
   // Private members
   private viewModel: ViewModel;
   private canvas: HTMLCanvasElement;
-  private active: boolean = false;
   private newNode: boolean = false;
   private renamedNode: number = -1;
   private input: HTMLInputElement | null = null;
@@ -798,19 +784,13 @@ class NodeCreationAndRenameController implements IViewController {
 // add node as selected if mouse is pressed on it and ctrl is pressed
 // remove node from selected if already selected and mouse is pressed on it and ctrl is pressed
 // set no node as selected if mouse is pressed on empty space
-class SelectionHandler implements IViewController {
+class SelectionHandler extends BaseController {
   constructor(viewModel: ViewModel) {
+    super();
     this.viewModel = viewModel;
   }
 
-  // IViewController
-  isActive(): boolean { return false; }
-
-  onDraw(_viewContext: IViewContext): void {}
-
-  onOtherControllerActivated(): void {}
-
-  onModelChanged(): void {}
+  // Start IViewController
 
   onMouseDown(event: MouseEvent): void {
     this.lastMouseDownPosition = { x: event.clientX, y: event.clientY };
@@ -835,8 +815,6 @@ class SelectionHandler implements IViewController {
     }
   }
 
-  onMouseMove(_event: MouseEvent): void {}
-
   onMouseUp(_event: MouseEvent): void {
     // if mouse is pressed and released without moving then select the node under the cursor
     const deltaX = _event.clientX - this.lastMouseDownPosition.x;
@@ -855,29 +833,21 @@ class SelectionHandler implements IViewController {
     }
   }
 
-  onWheel(_event: WheelEvent): void {}
-
-  onDblClick(_event: MouseEvent): void {}
-
-  onKeydown(_event: KeyboardEvent): void {}
-
-  onKeyup(_event: KeyboardEvent): void {}
-
   // Private members
   private viewModel: ViewModel;
   private lastMouseDownPosition: { x: number, y: number } = { x: 0, y: 0 };
 }
 
-// when pressed and held for half a second we start creating a connection from selected nodes to the cursor
-// when released we finish creating the connection - if released on a node then create connection to that node
-// if released on empty space then cancel connection creation
-class ConnectionCreationController implements IViewController {
+// when pressed and held for half a second we start creating a connection from selected nodes to the
+// cursor when released we finish creating the connection - if released on a node then create 
+// connection to that node if released on empty space then cancel connection creation
+class ConnectionCreationController extends BaseController {
   constructor(viewModel: ViewModel) {
+    super();
     this.viewModel = viewModel;
   }
 
-  // IViewController
-  isActive(): boolean { return this.active; }
+  // Start IViewController
 
   onDraw(viewContext: IViewContext): void {
     // if controller is active then draw connection from selected nodes to the cursor
@@ -889,6 +859,14 @@ class ConnectionCreationController implements IViewController {
         const from = { x: rectangle.x + rectangle.width / 2, y: rectangle.y + rectangle.height / 2 };
         const to = mousePosition;
         viewContext.drawConnectionLine(from, to);
+
+        const viewStyle = this.viewModel.getViewStyle();
+        const ctx = viewContext.getContext();
+        ctx.strokeStyle = viewStyle.nodeSelectedBorderColor;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.rect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+        ctx.stroke();
       });
     }
   }
@@ -900,24 +878,27 @@ class ConnectionCreationController implements IViewController {
     }
   }
 
-  onModelChanged(): void {}
-
   onMouseDown(_event: MouseEvent): void {
     // if mouse is pressed on a node then start preparing for activation
     const hoveredNode = this.viewModel.getHoveredNode();
     if (hoveredNode !== -1) {
       this.preparingForActivation = true;
-      this.activationTimeout = setTimeout(() => this.activate(), 500);
+      this.activationTimeout = setTimeout(() => this.activate(), 400);
     }
   }
 
   onMouseMove(_event: MouseEvent): void {
     // if preparing for activation cancel the preparation and cancel the timeout event
-    if (this.preparingForActivation) {
+    // give user 5 px of tolerance
+    if (this.preparingForActivation 
+      && Math.abs(_event.clientX - this.lastCursorPositon.clientX) > 5
+      && Math.abs(_event.clientY - this.lastCursorPositon.clientY) > 5) 
+    {
       this.cancelPrepareForActivation();
     }
     // save cursor position
     this.lastCursorPositon = _event;
+    this.observers.forEach(observer => observer.onRedrawRequested());
   }
 
   onMouseUp(_event: MouseEvent): void {
@@ -933,34 +914,36 @@ class ConnectionCreationController implements IViewController {
     }
   }
 
-  onWheel(_event: WheelEvent): void {}
-
-  onDblClick(_event: MouseEvent): void {}
-
-  onKeydown(_event: KeyboardEvent): void {}
-
-  onKeyup(_event: KeyboardEvent): void {}
-
   private cancelPrepareForActivation(): void {
     this.preparingForActivation = false;
     clearTimeout(this.activationTimeout);
   }
 
   private activate(): void {
+    console.log('activate');
     this.active = true;
     this.preparingForActivation = false;
     this.activationTimeout = 0;
+    this.activationStartTime = Date.now();
+    this.observers.forEach(observer => observer.onControllerActivated(this));
+    this.observers.forEach(observer => observer.onRedrawRequested());
   }
+
+  // End IViewController
 
   // Private members
   private viewModel: ViewModel;
   private preparingForActivation: boolean = false;
-  private active: boolean = false;
   private activationTimeout: number = 0;
   private lastCursorPositon: MouseEvent = new MouseEvent('mousemove');
+  private activationStartTime: number = 0;
 }
 
-class View implements IViewModelObserver, IViewContext {
+
+//**************************************************************************************************
+// view
+//**************************************************************************************************
+class View implements IViewModelObserver, IViewContext, IViewControllerObserver {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
     this.canvas = canvas;
@@ -977,6 +960,9 @@ class View implements IViewModelObserver, IViewContext {
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
     this.controllers.push(new ConnectionCreationController(this.viewModel));
+
+    // register as observer of controllers
+    this.controllers.forEach(controller => controller.registerObserver(this));
 
     // add event listeners
     // redraw on resize
@@ -1023,6 +1009,9 @@ class View implements IViewModelObserver, IViewContext {
     children.forEach(child => {
       this.drawNode(child);
     });
+
+    // for each controller draw its stuff
+    this.controllers.forEach(controller => controller.onDraw(this));
   }
 
   // Private methods
@@ -1213,6 +1202,24 @@ class View implements IViewModelObserver, IViewContext {
     }
   }
 
+  // IViewControllerObserver
+  onControllerActivated(controller: IViewController): void {
+    // if controller is active then cancel activation of other controllers
+    if (controller.isActive()) {
+      this.activeController = controller;
+      this.controllers.forEach(otherController => {
+        if (otherController !== controller) {
+          otherController.onOtherControllerActivated();
+        }
+      });
+    }
+  }
+
+  onRedrawRequested(): void {
+    this.draw();
+  }
+  // end IViewControllerObserver
+
   // IViewContext
   getContext(): CanvasRenderingContext2D { return this.ctx; }
 
@@ -1236,8 +1243,6 @@ class View implements IViewModelObserver, IViewContext {
     this.ctx.fill();
   }
   // end IViewContext
-
-  
 
   // IViewModelObserver
   onModelChanged(): void {
@@ -1274,6 +1279,9 @@ class View implements IViewModelObserver, IViewContext {
   private activeController: IViewController | null = null;
 }
 
+//**************************************************************************************************
+// main
+//**************************************************************************************************
 var model = new Model();
 var viewModel = new ViewModel(model);
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
