@@ -468,39 +468,31 @@ class NodeMoveController implements IViewController {
   onMouseDown(_event: MouseEvent): void {}
 
   onMouseMove(event: MouseEvent): void {
-    // if controller is not active, mouse is moving and LMB is pressed then set controller active
-    if (!this.active && event.buttons === 1) {
-      // if mouse is hovered over a node then move it and set controller active
-      const displayedParent = this.viewModel.getDisplayedParent();
-      const children = this.viewModel.getModel().getChildren(displayedParent);
-      const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
-      const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
-          && event.clientX <= rectangle.x + rectangle.width 
-          && event.clientY >= rectangle.y 
-          && event.clientY <= rectangle.y + rectangle.height);
-      if (index !== -1) {
-        this.active = true;
-        this.draggedNode = children[index];
-        this.startingCursorPosition = { x: event.clientX, y: event.clientY };
-        this.startingRectangle = this.viewModel.getRectangleInViewport(this.draggedNode);
-      }
+    // if controller is not active, mouse is moving, LMB is pressed and any node is selected then set controller active
+    if (!this.active && event.buttons === 1 && this.viewModel.getSelectedNodes().length > 0) {
+      this.active = true;
+      this.startingCursorPosition = { x: event.clientX, y: event.clientY };
+      this.startingRectangles = this.viewModel.getSelectedNodes().map(node => this.viewModel.getRectangleInViewport(node));
+      this.draggedNodes = this.viewModel.getSelectedNodes().slice();
     }
     
     if (this.active) {
       // move node
       const deltaX = event.clientX - this.startingCursorPosition.x;
       const deltaY = event.clientY - this.startingCursorPosition.y;
-      var rectangle = new Rectangle(this.startingRectangle.x + deltaX, this.startingRectangle.y + deltaY, 
-        this.startingRectangle.width, this.startingRectangle.height);
-      this.viewModel.setRectangleInViewport(this.draggedNode, rectangle);
+      this.draggedNodes.forEach((node, index) => {
+        const rectangle = this.startingRectangles[index];
+        const newRectangle = new Rectangle(rectangle.x + deltaX, rectangle.y + deltaY, rectangle.width, rectangle.height);
+        this.viewModel.setRectangleInViewport(node, newRectangle);
+      });
     }
   }
 
   onMouseUp(_event: MouseEvent): void {
     this.active = false;
-    this.draggedNode = -1;
     this.startingCursorPosition = { x: 0, y: 0 };
-    this.startingRectangle = new Rectangle(0, 0, 0, 0);
+    this.startingRectangles = [];
+    this.draggedNodes = [];
   }
 
   onWheel(_event: WheelEvent): void {}
@@ -514,9 +506,9 @@ class NodeMoveController implements IViewController {
   // Private members
   private viewModel: ViewModel;
   private active: boolean = false;
-  private draggedNode: number = -1;
+  private draggedNodes: number[] = [];
   private startingCursorPosition: { x: number, y: number } = { x: 0, y: 0 };
-  private startingRectangle: Rectangle = new Rectangle(0, 0, 0, 0);
+  private startingRectangles: Rectangle[] = [];
 }
 
 class ViewportMoveController implements IViewController {
@@ -803,26 +795,21 @@ class SelectionHandler implements IViewController {
   onModelChanged(): void {}
 
   onMouseDown(event: MouseEvent): void {
+    this.lastMouseDownPosition = { x: event.clientX, y: event.clientY };
     // if mouse is pressed on a node then select it
-    const displayedParent = this.viewModel.getDisplayedParent();
-    const children = this.viewModel.getModel().getChildren(displayedParent);
-    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
-    const index = rectangles.findIndex(rectangle => event.clientX >= rectangle.x 
-        && event.clientX <= rectangle.x + rectangle.width 
-        && event.clientY >= rectangle.y 
-        && event.clientY <= rectangle.y + rectangle.height);
-    if (index !== -1) {
+    const hoveredNode = this.viewModel.getHoveredNode();
+    if (hoveredNode !== -1) {
       // if ctrl is pressed then add node to selection
       if (event.ctrlKey) {
         const selectedNodes = this.viewModel.getSelectedNodes();
-        const nodeIndex = selectedNodes.indexOf(children[index]);
+        const nodeIndex = selectedNodes.indexOf(hoveredNode);
         if (nodeIndex === -1) {
-          selectedNodes.push(children[index]);
+          selectedNodes.push(hoveredNode);
           this.viewModel.setSelectedNodes(selectedNodes);
         }
-      } else {
-        // if ctrl is not pressed then set node as selected
-        this.viewModel.setSelectedNodes([children[index]]);
+      // if ctrl is not pressed and node is not among seleted then set is as selected
+      } else if (!this.viewModel.getSelectedNodes().includes(hoveredNode)) {
+        this.viewModel.setSelectedNodes([hoveredNode]);
       }
     } else {
       // if mouse is pressed on empty space then deselect all nodes
@@ -832,7 +819,23 @@ class SelectionHandler implements IViewController {
 
   onMouseMove(_event: MouseEvent): void {}
 
-  onMouseUp(_event: MouseEvent): void {}
+  onMouseUp(_event: MouseEvent): void {
+    // if mouse is pressed and released without moving then select the node under the cursor
+    const deltaX = _event.clientX - this.lastMouseDownPosition.x;
+    const deltaY = _event.clientY - this.lastMouseDownPosition.y;
+    if (deltaX === 0 && deltaY === 0) {
+      // if mouse is pressed on a node then select it
+      const hoveredNode = this.viewModel.getHoveredNode();
+      if (hoveredNode !== -1) {
+        // if ctrl is pressed then do nothing
+        if (_event.ctrlKey) {
+        // if ctrl is not pressed set the hovered node as selected
+        } else {
+          this.viewModel.setSelectedNodes([hoveredNode]);
+        }
+      }
+    }
+  }
 
   onWheel(_event: WheelEvent): void {}
 
@@ -844,6 +847,7 @@ class SelectionHandler implements IViewController {
 
   // Private members
   private viewModel: ViewModel;
+  private lastMouseDownPosition: { x: number, y: number } = { x: 0, y: 0 };
 }
 
 class View implements IViewModelObserver {
@@ -856,12 +860,12 @@ class View implements IViewModelObserver {
     this.viewModel.registerObserver(this as IViewModelObserver);
 
     // create controllers
+    this.controllers.push(new NodeHoverController(this.viewModel));
+    this.controllers.push(new SelectionHandler(this.viewModel));
     this.controllers.push(new ViewportMoveController(this.viewModel));
     this.controllers.push(new NodeMoveController(this.viewModel));
-    this.controllers.push(new NodeHoverController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
-    this.controllers.push(new SelectionHandler(this.viewModel));
 
     // add event listeners
     // redraw on resize
