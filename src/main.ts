@@ -409,7 +409,7 @@ class NodeHoverController implements IViewController {
   // IViewController
   isActive(): boolean { return false; }
 
-  onDraw(viewContext: IViewContext): void {}
+  onDraw(_viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {}
 
@@ -469,7 +469,7 @@ class NodeMoveController implements IViewController {
   // IViewController
   isActive(): boolean { return this.active; }
 
-  onDraw(viewContext: IViewContext): void {}
+  onDraw(_viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {}
 
@@ -529,7 +529,7 @@ class ViewportMoveController implements IViewController {
   // IViewController
   isActive(): boolean { return this.active; }
 
-  onDraw(viewContext: IViewContext): void {}
+  onDraw(_viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {}
 
@@ -583,7 +583,7 @@ class ViewportZoomController implements IViewController {
   // IViewController
   isActive(): boolean { return false; }
 
-  onDraw(viewContext: IViewContext): void {}
+  onDraw(_viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {}
 
@@ -634,7 +634,7 @@ class NodeCreationAndRenameController implements IViewController {
   // IViewController
   isActive(): boolean { return false; }
 
-  onDraw(viewContext: IViewContext): void {}
+  onDraw(_viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {
     // if controller is active then cancel rename
@@ -806,7 +806,7 @@ class SelectionHandler implements IViewController {
   // IViewController
   isActive(): boolean { return false; }
 
-  onDraw(viewContext: IViewContext): void {}
+  onDraw(_viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {}
 
