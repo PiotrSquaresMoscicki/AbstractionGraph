@@ -646,14 +646,15 @@ class NodeCreationAndRenameController extends BaseController {
     if (this.active) {
       this.finishRename();
     }
+    this.readyForActivation = false;
   }
 
-  onMouseUp(_event: MouseEvent): void {
+  onMouseUp(event: MouseEvent): void {
     // if controller is active and mouse up is performed outside of the renamed node then finish rename
     if (this.active) {
       const rectangle = this.viewModel.getRectangleInViewport(this.renamedNode);
-      if (_event.clientX < rectangle.x || _event.clientX > rectangle.x + rectangle.width 
-          || _event.clientY < rectangle.y || _event.clientY > rectangle.y + rectangle.height) {
+      if (event.clientX < rectangle.x || event.clientX > rectangle.x + rectangle.width 
+          || event.clientY < rectangle.y || event.clientY > rectangle.y + rectangle.height) {
         // if new name is empty then cancel rename
         if (this.input?.value === '') {
           this.cancelRename();
@@ -661,11 +662,7 @@ class NodeCreationAndRenameController extends BaseController {
           this.finishRename();
         }
       }
-    }
-  }
-
-  onDblClick(event: MouseEvent): void {
-    if (!this.active) {
+    } else if (this.readyForActivation) {
       // if double click is performed on a node then set controller active
       const displayedParent = this.viewModel.getDisplayedParent();
       const children = this.viewModel.getModel().getChildren(displayedParent);
@@ -693,6 +690,10 @@ class NodeCreationAndRenameController extends BaseController {
         this.startRename(children[index]);
       }
     }
+  }
+
+  onDblPress(_event: MouseEvent): void {
+    this.readyForActivation = true;
   }
 
   onKeyup(event: KeyboardEvent): void {
@@ -770,6 +771,7 @@ class NodeCreationAndRenameController extends BaseController {
       this.viewModel.getModel().destroyNode(this.renamedNode);
     }
     this.active = false;
+    this.readyForActivation = false;
     this.renamedNode = -1;
     this.newNode = false;
     this.viewModel.setRenamedNode(-1);
@@ -784,6 +786,7 @@ class NodeCreationAndRenameController extends BaseController {
 
   // Private members
   private viewModel: ViewModel;
+  private readyForActivation: boolean = false;
   private canvas: HTMLCanvasElement;
   private newNode: boolean = false;
   private renamedNode: number = -1;
@@ -1169,7 +1172,9 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     // if there is an active controller then pass the event to it
     if (this.activeController !== null) {
       lambda(this.activeController);
-      if (!this.activeController.isActive()) {
+      // we also check for null because inside this lambda we may trigger modelCHanged event which 
+      // can do the job for us
+      if (this.activeController !== null && !this.activeController.isActive()) {
         this.activeController = null;
       }
       return;
