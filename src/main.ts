@@ -47,13 +47,16 @@
 // Definitions:
 // Graph - a set of nodes and connections between them
 // Connection - connection between two nodes
-// Node - edge of the graph that can be connected to other nodes but also contains an inner graph
+// Node - vertex of the graph that can be connected to other vertices but also can contain an inner
+//    graph
 // Inner Graph - a graph that is contained within a node. Node containing a graph represents an 
 //    abstraction of the inner graph. Nodes from the inner graph can be connected to nodes outside
-//    of the inner graph (siblings of the node containing the inner graph)
+//    of the inner graph creating outer connections (connections to siblings of the node containing
+//    the inner graph)
 // Abstraction - a node that contains an inner graph that is not empty
 
 // The app uses model, view, view model (MVVM) architecture.
+// Controllers are extensions to the View representing states of the view.
 
 //**************************************************************************************************
 // model
@@ -185,6 +188,10 @@ class Model {
   }
 
   addConnection(from: number, to: number): void {
+    // prevent duplicate connections
+    if (this.connections.some(connection => connection.from === from && connection.to === to)) {
+      return;
+    }
     this.connections.push(new Connection(from, to));
     this.observers.forEach(observer => observer.onConnectionAdded(from, to));
     this.observers.forEach(observer => observer.onModelChanged());
@@ -394,6 +401,7 @@ class ViewModel {
 interface IViewContext {
   getContext(): CanvasRenderingContext2D;
   drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }): void;
+  getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number };
 }
 
 interface IViewControllerObserver {
@@ -412,6 +420,7 @@ interface IViewController {
   onMouseMove(_event: MouseEvent): void;
   onMouseUp(_event: MouseEvent): void;
   onWheel(_event: WheelEvent): void;
+  onDblPress(_event: MouseEvent): void;
   onDblClick(_event: MouseEvent): void;
   onKeydown(_event: KeyboardEvent): void;
   onKeyup(_event: KeyboardEvent): void;
@@ -439,6 +448,7 @@ class BaseController implements IViewController {
   onMouseMove(_event: MouseEvent): void {}
   onMouseUp(_event: MouseEvent): void {}
   onWheel(_event: WheelEvent): void {}
+  onDblPress(_event: MouseEvent): void {}
   onDblClick(_event: MouseEvent): void {}
   onKeydown(_event: KeyboardEvent): void {}
   onKeyup(_event: KeyboardEvent): void {}
@@ -838,9 +848,8 @@ class SelectionHandler extends BaseController {
   private lastMouseDownPosition: { x: number, y: number } = { x: 0, y: 0 };
 }
 
-// when pressed and held for half a second we start creating a connection from selected nodes to the
-// cursor when released we finish creating the connection - if released on a node then create 
-// connection to that node if released on empty space then cancel connection creation
+// when cursor is moved after double click we start creating a connection from the selected node 
+// to the cursor
 class ConnectionCreationController extends BaseController {
   constructor(viewModel: ViewModel) {
     super();
@@ -850,93 +859,92 @@ class ConnectionCreationController extends BaseController {
   // Start IViewController
 
   onDraw(viewContext: IViewContext): void {
-    // if controller is active then draw connection from selected nodes to the cursor
     if (this.active) {
+      // draw connection lines from all selected nodes to the mouse cursor
       const selectedNodes = this.viewModel.getSelectedNodes();
-      const mousePosition = this.viewModel.getMousePositionInModel(this.lastCursorPositon);
+      const mousePosition = this.viewModel.getMousePositionInModel(this.lastMouseMoveEvent);
+      // get node under cursor if any
+      const displayedParent = this.viewModel.getDisplayedParent();
+      const children = this.viewModel.getModel().getChildren(displayedParent);
+      const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+      const index = rectangles.findIndex(rectangle => mousePosition.x >= rectangle.x 
+          && mousePosition.x <= rectangle.x + rectangle.width 
+          && mousePosition.y >= rectangle.y 
+          && mousePosition.y <= rectangle.y + rectangle.height);
+      // if no rectangle is hovered generate 2x2 rect with the center at the mouse position
+      const hoveredRectangle = index === -1 ? new Rectangle(mousePosition.x - 1, mousePosition.y - 1, 2, 2) : rectangles[index];
+      
       selectedNodes.forEach(node => {
-        const rectangle = this.viewModel.getRectangleInViewport(node);
-        const from = { x: rectangle.x + rectangle.width / 2, y: rectangle.y + rectangle.height / 2 };
-        const to = mousePosition;
-        viewContext.drawConnectionLine(from, to);
+        if (node === children[index]) {
+          return;
+        }
 
-        const viewStyle = this.viewModel.getViewStyle();
-        const ctx = viewContext.getContext();
-        ctx.strokeStyle = viewStyle.nodeSelectedBorderColor;
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.rect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
-        ctx.stroke();
+        const nodeRectangle = this.viewModel.getRectangleInViewport(node);
+        const from = viewContext.getConnectionPoint(nodeRectangle, hoveredRectangle);
+        const to = viewContext.getConnectionPoint(hoveredRectangle, nodeRectangle);
+        viewContext.drawConnectionLine(from, to);
       });
     }
   }
-
-  onOtherControllerActivated(): void {
-    // if preparing for activation cancel the preparation and cancel the timeout event
-    if (this.preparingForActivation) {
-      this.cancelPrepareForActivation();
-    }
-  }
-
-  onMouseDown(_event: MouseEvent): void {
-    // if mouse is pressed on a node then start preparing for activation
-    const hoveredNode = this.viewModel.getHoveredNode();
-    if (hoveredNode !== -1) {
-      this.preparingForActivation = true;
-      this.activationTimeout = setTimeout(() => this.activate(), 400);
+  
+  onDblPress(_event: MouseEvent): void {
+    // if controller is not active and any node is selected then set controller active
+    if (!this.active && this.viewModel.getSelectedNodes().length > 0) {
+      this.startConnection();
     }
   }
 
   onMouseMove(_event: MouseEvent): void {
-    // if preparing for activation cancel the preparation and cancel the timeout event
-    // give user 5 px of tolerance
-    if (this.preparingForActivation 
-      && Math.abs(_event.clientX - this.lastCursorPositon.clientX) > 5
-      && Math.abs(_event.clientY - this.lastCursorPositon.clientY) > 5) 
-    {
-      this.cancelPrepareForActivation();
+    if (this.active) {
+      // save event
+      this.lastMouseMoveEvent = _event;
+      // request redraw
+      this.observers.forEach(observer => observer.onRedrawRequested());
     }
-    // save cursor position
-    this.lastCursorPositon = _event;
-    this.observers.forEach(observer => observer.onRedrawRequested());
   }
 
   onMouseUp(_event: MouseEvent): void {
-    // if controller is active then finish connection creation
     if (this.active) {
-      // if mouse is released on a node then create connection to that node
-      const hoveredNode = this.viewModel.getHoveredNode();
-      if (hoveredNode !== -1) {
-        const selectedNodes = this.viewModel.getSelectedNodes();
-        selectedNodes.forEach(node => this.viewModel.getModel().addConnection(node, hoveredNode));
-      }
-      this.active = false;
+      // if mouse is released after double click then finish connection
+      this.finishConnection();
     }
-  }
-
-  private cancelPrepareForActivation(): void {
-    this.preparingForActivation = false;
-    clearTimeout(this.activationTimeout);
-  }
-
-  private activate(): void {
-    console.log('activate');
-    this.active = true;
-    this.preparingForActivation = false;
-    this.activationTimeout = 0;
-    this.activationStartTime = Date.now();
-    this.observers.forEach(observer => observer.onControllerActivated(this));
-    this.observers.forEach(observer => observer.onRedrawRequested());
   }
 
   // End IViewController
 
+  // Private functions
+
+  private startConnection(): void {
+    this.active = true;
+  }
+
+  private finishConnection(): void {
+    // get hovered node (but not from model as hover controller is not active when this controller
+    // is active)
+    const displayedParent = this.viewModel.getDisplayedParent();
+    const children = this.viewModel.getModel().getChildren(displayedParent);
+    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+    const index = rectangles.findIndex(rectangle => this.lastMouseMoveEvent.clientX >= rectangle.x 
+        && this.lastMouseMoveEvent.clientX <= rectangle.x + rectangle.width 
+        && this.lastMouseMoveEvent.clientY >= rectangle.y 
+        && this.lastMouseMoveEvent.clientY <= rectangle.y + rectangle.height);
+    const hoveredNode = index === -1 ? -1 : children[index];
+    // if hovered node is not -1 then create connection
+    if (hoveredNode !== -1) {
+      // get selected nodes
+      const selectedNodes = this.viewModel.getSelectedNodes();
+      // for each selected node create connection
+      selectedNodes.forEach(node => {
+        this.viewModel.getModel().addConnection(node, hoveredNode);
+      });
+    }
+    // set controller inactive
+    this.active = false;
+  }
+
   // Private members
   private viewModel: ViewModel;
-  private preparingForActivation: boolean = false;
-  private activationTimeout: number = 0;
-  private lastCursorPositon: MouseEvent = new MouseEvent('mousemove');
-  private activationStartTime: number = 0;
+  private lastMouseMoveEvent: MouseEvent = new MouseEvent('mousemove');
 }
 
 
@@ -969,11 +977,10 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     window.addEventListener('resize', () => this.draw());
     
     // mouse events
-    canvas.addEventListener('mousedown', (event) => this.onEvent(controller => controller.onMouseDown(event)));
+    canvas.addEventListener('mousedown', (event) => this.onMouseDown(event));
     canvas.addEventListener('mousemove', (event) => this.onEvent(controller => controller.onMouseMove(event)));
-    canvas.addEventListener('mouseup', (event) => this.onEvent(controller => controller.onMouseUp(event)));
+    canvas.addEventListener('mouseup', (event) => this.onMouseUp(event));
     canvas.addEventListener('wheel', (event) => this.onEvent(controller => controller.onWheel(event)));
-    canvas.addEventListener('dblclick', (event) => this.onEvent(controller => controller.onDblClick(event)));
 
     // keyboard events
     window.addEventListener('keydown', (event) => this.onEvent(controller => controller.onKeydown(event)));
@@ -1114,42 +1121,6 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     this.drawConnectionLine(fromConnectionPoint, toConnectionPoint);
   }
 
-  private getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
-    // get center of from rectangle
-    const fromCenter = { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y + fromRectangle.height / 2 };
-    // get center of to rectangle
-    const toCenter = { x: toRectangle.x + toRectangle.width / 2, y: toRectangle.y + toRectangle.height / 2 };
-    // get intersection point of line from fromCenter to toCenter and fromRectangle
-    const connectionLine = { startx: fromCenter.x, starty: fromCenter.y, endx: toCenter.x, endy: toCenter.y };
-    const fromRectangleTop = { startx: fromRectangle.x, starty: fromRectangle.y, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y };
-    const fromRectangleBottom = { startx: fromRectangle.x, starty: fromRectangle.y + fromRectangle.height, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y + fromRectangle.height };
-    const fromRectangleLeft = { startx: fromRectangle.x, starty: fromRectangle.y, endx: fromRectangle.x, endy: fromRectangle.y + fromRectangle.height };
-    const fromRectangleRight = { startx: fromRectangle.x + fromRectangle.width, starty: fromRectangle.y, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y + fromRectangle.height };
-
-    const intersectionTop = this.getIntersection(connectionLine, fromRectangleTop);
-    const intersectionBottom = this.getIntersection(connectionLine, fromRectangleBottom);
-    const intersectionLeft = this.getIntersection(connectionLine, fromRectangleLeft);
-    const intersectionRight = this.getIntersection(connectionLine, fromRectangleRight);
-
-    // find intersection that is closest to toCenter
-    const intersections = [intersectionTop, intersectionBottom, intersectionLeft, intersectionRight];
-    const distances = intersections.map(intersection => intersection === null 
-      ? Infinity 
-      : Math.sqrt(Math.pow(toCenter.x - intersection.x, 2) + Math.pow(toCenter.y - intersection.y, 2)));
-    const minDistance = Math.min(...distances);
-    const index = distances.indexOf(minDistance);
-    const intersection = intersections[index] as { x: number, y: number };
-    // if intersection is null then move from rectangle one pixel to the right and try again
-    if (intersection === null) {
-      fromRectangle.x += 1;
-      return this.getConnectionPoint(fromRectangle, toRectangle);
-    }
-    else
-    {
-      return intersection;
-    }
-  }
-
   private getIntersection(line1: { startx: number, starty: number, endx: number, endy: number }, 
       line2: { startx: number, starty: number, endx: number, endy: number }): { x: number, y: number } | null {
     const denominator = (line2.endy - line2.starty) * (line1.endx - line1.startx) - (line2.endx - line2.startx) * (line1.endy - line1.starty);
@@ -1170,6 +1141,24 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     const x = line1.startx + a * (line1.endx - line1.startx);
     const y = line1.starty + a * (line1.endy - line1.starty);
     return { x: x, y: y };
+  }
+
+  private onMouseDown(event: MouseEvent): void {
+    this.onEvent(controller => controller.onMouseDown(event));
+    // call onDblPress on all controllers if mouse is pressed twice in a short time
+    if (Date.now() - this.lastPressTime < this.doublePressThreshold) {
+      this.onEvent(controller => controller.onDblPress(event));
+    }
+    this.lastPressTime = Date.now();
+  }
+
+  private onMouseUp(event: MouseEvent): void {
+    this.onEvent(controller => controller.onMouseUp(event));
+    // call onDblClick on all controllers if mouse is released twice in a short time
+    if (Date.now() - this.lastClickTime < this.doubleClickThreshold) {
+      this.onEvent(controller => controller.onDblClick(event));
+    }
+    this.lastClickTime = Date.now();
   }
 
   // Generic function for controlling active controller. Takes lambda as a parameter and calls it 
@@ -1242,6 +1231,43 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     this.ctx.lineTo(to.x, to.y);
     this.ctx.fill();
   }
+
+  getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
+    // get center of from rectangle
+    const fromCenter = { x: fromRectangle.x + fromRectangle.width / 2, y: fromRectangle.y + fromRectangle.height / 2 };
+    // get center of to rectangle
+    const toCenter = { x: toRectangle.x + toRectangle.width / 2, y: toRectangle.y + toRectangle.height / 2 };
+    // get intersection point of line from fromCenter to toCenter and fromRectangle
+    const connectionLine = { startx: fromCenter.x, starty: fromCenter.y, endx: toCenter.x, endy: toCenter.y };
+    const fromRectangleTop = { startx: fromRectangle.x, starty: fromRectangle.y, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y };
+    const fromRectangleBottom = { startx: fromRectangle.x, starty: fromRectangle.y + fromRectangle.height, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y + fromRectangle.height };
+    const fromRectangleLeft = { startx: fromRectangle.x, starty: fromRectangle.y, endx: fromRectangle.x, endy: fromRectangle.y + fromRectangle.height };
+    const fromRectangleRight = { startx: fromRectangle.x + fromRectangle.width, starty: fromRectangle.y, endx: fromRectangle.x + fromRectangle.width, endy: fromRectangle.y + fromRectangle.height };
+
+    const intersectionTop = this.getIntersection(connectionLine, fromRectangleTop);
+    const intersectionBottom = this.getIntersection(connectionLine, fromRectangleBottom);
+    const intersectionLeft = this.getIntersection(connectionLine, fromRectangleLeft);
+    const intersectionRight = this.getIntersection(connectionLine, fromRectangleRight);
+
+    // find intersection that is closest to toCenter
+    const intersections = [intersectionTop, intersectionBottom, intersectionLeft, intersectionRight];
+    const distances = intersections.map(intersection => intersection === null 
+      ? Infinity 
+      : Math.sqrt(Math.pow(toCenter.x - intersection.x, 2) + Math.pow(toCenter.y - intersection.y, 2)));
+    const minDistance = Math.min(...distances);
+    const index = distances.indexOf(minDistance);
+    const intersection = intersections[index] as { x: number, y: number };
+    // if intersection is null then move from rectangle one pixel to the right and try again
+    if (intersection === null) {
+      fromRectangle.x += 1;
+      return this.getConnectionPoint(fromRectangle, toRectangle);
+    }
+    else
+    {
+      return intersection;
+    }
+  }
+
   // end IViewContext
 
   // IViewModelObserver
@@ -1277,6 +1303,11 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
   // of them becomes active
   private controllers: IViewController[] = [];
   private activeController: IViewController | null = null;
+
+  private doublePressThreshold: number = 500;
+  private doubleClickThreshold: number = 500;
+  private lastPressTime: number = 0;
+  private lastClickTime: number = 0;
 }
 
 //**************************************************************************************************
