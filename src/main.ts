@@ -382,8 +382,14 @@ class ViewModel {
   private zoom: number = 1;
 }
 
+interface IViewContext {
+  getContext(): CanvasRenderingContext2D;
+  drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }): void;
+}
+
 interface IViewController {
   isActive(): boolean;
+  onDraw(viewContext: IViewContext): void;
   onOtherControllerActivated(): void;
   onModelChanged(): void;
   onMouseDown(_event: MouseEvent): void;
@@ -402,6 +408,8 @@ class NodeHoverController implements IViewController {
 
   // IViewController
   isActive(): boolean { return false; }
+
+  onDraw(viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {}
 
@@ -461,6 +469,8 @@ class NodeMoveController implements IViewController {
   // IViewController
   isActive(): boolean { return this.active; }
 
+  onDraw(viewContext: IViewContext): void {}
+
   onOtherControllerActivated(): void {}
 
   onModelChanged(): void {}
@@ -519,6 +529,8 @@ class ViewportMoveController implements IViewController {
   // IViewController
   isActive(): boolean { return this.active; }
 
+  onDraw(viewContext: IViewContext): void {}
+
   onOtherControllerActivated(): void {}
 
   onModelChanged(): void {}
@@ -571,6 +583,8 @@ class ViewportZoomController implements IViewController {
   // IViewController
   isActive(): boolean { return false; }
 
+  onDraw(viewContext: IViewContext): void {}
+
   onOtherControllerActivated(): void {}
 
   onModelChanged(): void {}
@@ -619,6 +633,8 @@ class NodeCreationAndRenameController implements IViewController {
 
   // IViewController
   isActive(): boolean { return false; }
+
+  onDraw(viewContext: IViewContext): void {}
 
   onOtherControllerActivated(): void {
     // if controller is active then cancel rename
@@ -790,6 +806,8 @@ class SelectionHandler implements IViewController {
   // IViewController
   isActive(): boolean { return false; }
 
+  onDraw(viewContext: IViewContext): void {}
+
   onOtherControllerActivated(): void {}
 
   onModelChanged(): void {}
@@ -850,7 +868,99 @@ class SelectionHandler implements IViewController {
   private lastMouseDownPosition: { x: number, y: number } = { x: 0, y: 0 };
 }
 
-class View implements IViewModelObserver {
+// when pressed and held for half a second we start creating a connection from selected nodes to the cursor
+// when released we finish creating the connection - if released on a node then create connection to that node
+// if released on empty space then cancel connection creation
+class ConnectionCreationController implements IViewController {
+  constructor(viewModel: ViewModel) {
+    this.viewModel = viewModel;
+  }
+
+  // IViewController
+  isActive(): boolean { return this.active; }
+
+  onDraw(viewContext: IViewContext): void {
+    // if controller is active then draw connection from selected nodes to the cursor
+    if (this.active) {
+      const selectedNodes = this.viewModel.getSelectedNodes();
+      const mousePosition = this.viewModel.getMousePositionInModel(this.lastCursorPositon);
+      selectedNodes.forEach(node => {
+        const rectangle = this.viewModel.getRectangleInViewport(node);
+        const from = { x: rectangle.x + rectangle.width / 2, y: rectangle.y + rectangle.height / 2 };
+        const to = mousePosition;
+        viewContext.drawConnectionLine(from, to);
+      });
+    }
+  }
+
+  onOtherControllerActivated(): void {
+    // if preparing for activation cancel the preparation and cancel the timeout event
+    if (this.preparingForActivation) {
+      this.cancelPrepareForActivation();
+    }
+  }
+
+  onModelChanged(): void {}
+
+  onMouseDown(_event: MouseEvent): void {
+    // if mouse is pressed on a node then start preparing for activation
+    const hoveredNode = this.viewModel.getHoveredNode();
+    if (hoveredNode !== -1) {
+      this.preparingForActivation = true;
+      this.activationTimeout = setTimeout(() => this.activate(), 500);
+    }
+  }
+
+  onMouseMove(_event: MouseEvent): void {
+    // if preparing for activation cancel the preparation and cancel the timeout event
+    if (this.preparingForActivation) {
+      this.cancelPrepareForActivation();
+    }
+    // save cursor position
+    this.lastCursorPositon = _event;
+  }
+
+  onMouseUp(_event: MouseEvent): void {
+    // if controller is active then finish connection creation
+    if (this.active) {
+      // if mouse is released on a node then create connection to that node
+      const hoveredNode = this.viewModel.getHoveredNode();
+      if (hoveredNode !== -1) {
+        const selectedNodes = this.viewModel.getSelectedNodes();
+        selectedNodes.forEach(node => this.viewModel.getModel().addConnection(node, hoveredNode));
+      }
+      this.active = false;
+    }
+  }
+
+  onWheel(_event: WheelEvent): void {}
+
+  onDblClick(_event: MouseEvent): void {}
+
+  onKeydown(_event: KeyboardEvent): void {}
+
+  onKeyup(_event: KeyboardEvent): void {}
+
+  private cancelPrepareForActivation(): void {
+    this.preparingForActivation = false;
+    clearTimeout(this.activationTimeout);
+  }
+
+  private activate(): void {
+    this.active = true;
+    this.preparingForActivation = false;
+    this.activationTimeout = 0;
+  }
+
+  // Private members
+  private viewModel: ViewModel;
+  private preparingForActivation: boolean = false;
+  private active: boolean = false;
+  private activationTimeout: number = 0;
+  private lastCursorPositon: MouseEvent = new MouseEvent('mousemove');
+}
+
+class View implements IViewModelObserver, IViewContext {
   constructor(viewModel: ViewModel, canvas: HTMLCanvasElement) {
     this.viewModel = viewModel;
     this.canvas = canvas;
@@ -866,6 +976,7 @@ class View implements IViewModelObserver {
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
+    this.controllers.push(new ConnectionCreationController(this.viewModel));
 
     // add event listeners
     // redraw on resize
@@ -1010,23 +1121,8 @@ class View implements IViewModelObserver {
     const fromConnectionPoint = this.getConnectionPoint(fromRectangle, toRectangle);
     // get to edge
     const toConnectionPoint = this.getConnectionPoint(toRectangle, fromRectangle);
-    // draw line
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeStyle = this.viewModel.getViewStyle().connectionColor;
-    this.ctx.beginPath();
-    this.ctx.moveTo(fromConnectionPoint.x, fromConnectionPoint.y);
-    this.ctx.lineTo(toConnectionPoint.x, toConnectionPoint.y);
-    this.ctx.stroke();
-    // draw arrow (filled triangle with proper orientation)
-    const angle = Math.atan2(toConnectionPoint.y - fromConnectionPoint.y, toConnectionPoint.x - fromConnectionPoint.x);
-    const arrowLength = this.viewModel.getViewStyle().connectionArrowLength;
-    this.ctx.fillStyle = this.viewModel.getViewStyle().connectionArrowColor;
-    this.ctx.beginPath();
-    this.ctx.moveTo(toConnectionPoint.x, toConnectionPoint.y);
-    this.ctx.lineTo(toConnectionPoint.x - arrowLength * Math.cos(angle - Math.PI / 6), toConnectionPoint.y - arrowLength * Math.sin(angle - Math.PI / 6));
-    this.ctx.lineTo(toConnectionPoint.x - arrowLength * Math.cos(angle + Math.PI / 6), toConnectionPoint.y - arrowLength * Math.sin(angle + Math.PI / 6));
-    this.ctx.lineTo(toConnectionPoint.x, toConnectionPoint.y);
-    this.ctx.fill();
+    // draw connection
+    this.drawConnectionLine(fromConnectionPoint, toConnectionPoint);
   }
 
   private getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number } {
@@ -1116,6 +1212,32 @@ class View implements IViewModelObserver {
       }
     }
   }
+
+  // IViewContext
+  getContext(): CanvasRenderingContext2D { return this.ctx; }
+
+  drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }): void {
+    // draw line
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeStyle = this.viewModel.getViewStyle().connectionColor;
+    this.ctx.beginPath();
+    this.ctx.moveTo(from.x, from.y);
+    this.ctx.lineTo(to.x, to.y);
+    this.ctx.stroke();
+    // draw arrow (filled triangle with proper orientation)
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const arrowLength = this.viewModel.getViewStyle().connectionArrowLength;
+    this.ctx.fillStyle = this.viewModel.getViewStyle().connectionArrowColor;
+    this.ctx.beginPath();
+    this.ctx.moveTo(to.x, to.y);
+    this.ctx.lineTo(to.x - arrowLength * Math.cos(angle - Math.PI / 6), to.y - arrowLength * Math.sin(angle - Math.PI / 6));
+    this.ctx.lineTo(to.x - arrowLength * Math.cos(angle + Math.PI / 6), to.y - arrowLength * Math.sin(angle + Math.PI / 6));
+    this.ctx.lineTo(to.x, to.y);
+    this.ctx.fill();
+  }
+  // end IViewContext
+
+  
 
   // IViewModelObserver
   onModelChanged(): void {
