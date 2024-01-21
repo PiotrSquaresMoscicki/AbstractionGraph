@@ -58,6 +58,8 @@
 // The app uses model, view, view model (MVVM) architecture.
 // Controllers are extensions to the View representing states of the view.
 
+export {}
+
 //**************************************************************************************************
 // model
 //**************************************************************************************************
