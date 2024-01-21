@@ -4,7 +4,7 @@
     "description": "A TypeScript project called abstraction-graph",
     "scripts": {
         "dev": "vite",
-        "build-vite": "tsc --version && tsc && vite build --base ./",
+        "build": "tsc --version && tsc && vite build --base ./",
         "preview": "vite preview"
     },
     "dependencies": {
