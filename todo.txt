@@ -1,0 +1,10 @@
+- remove node
+- remove connection
+- change abstraction levels
+- display outer connections and nodes
+- display current abstraction name
+- move connection (chenge targets of connection ends)
+- create node when newly created connection is dropped on empt space
+- host on gh pages
+- fill readme
+// release 1.0.0
