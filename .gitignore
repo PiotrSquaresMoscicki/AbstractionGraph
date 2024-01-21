@@ -22,9 +22,6 @@
 # Ignore TypeScript declaration files
 *.d.ts
 
-# Ignore package-lock.json
-/package-lock.json
-
 # Ignore yarn.lock
 /yarn.lock
 
