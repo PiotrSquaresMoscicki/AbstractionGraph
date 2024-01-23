@@ -877,7 +877,7 @@ class ConnectionCreationController extends BaseController {
     if (this.active) {
       // draw connection lines from all selected nodes to the mouse cursor
       const selectedNodes = this.viewModel.getSelectedNodes();
-      const mousePosition = this.viewModel.getMousePositionInModel(this.lastMouseMoveEvent);
+      const mousePosition = { x: this.lastMouseMoveEvent.clientX, y: this.lastMouseMoveEvent.clientY };
       // get node under cursor if any
       const displayedParent = this.viewModel.getDisplayedParent();
       const children = this.viewModel.getModel().getChildren(displayedParent);

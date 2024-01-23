@@ -1,3 +1,5 @@
+- fix new connection visualization to take zoom and viewport ofset into consideration
+
 - remove node
 - remove connection
 - change abstraction levels
