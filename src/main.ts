@@ -889,8 +889,9 @@ class SelectionHandler extends BaseController {
       } else if (!this.viewModel.getSelectedNodes().includes(hoveredNode)) {
         this.viewModel.setSelectedNodes([hoveredNode]);
       }
-    } else {
-      // if mouse is pressed on empty space then deselect all nodes
+    } 
+    // otherwise deselect unless mouse is pressed, connection is hovered and ctrl is pressed
+    else if (this.viewModel.getHoveredConnection() === null || !event.ctrlKey) {
       this.viewModel.setSelectedNodes([]);
     }
   }
@@ -1090,7 +1091,6 @@ class ConnectionHoverController extends BaseController {
     const to = this.context.getConnectionPoint(toRectangle, fromRectangle);
     // get distance from point to line
     const distance = this.getDistanceFromPointToLine(point, from, to);
-    // if distance is less than 5 then return true
     return distance < 8;
   }
   
@@ -1130,6 +1130,43 @@ class ConnectionHoverController extends BaseController {
   private context: IViewContext;
 }
 
+class ConnectionSelectionController extends BaseController {
+  constructor(viewModel: ViewModel) {
+    super();
+    this.viewModel = viewModel;
+  }
+
+  // Start IViewController
+
+  onMouseDown(event: MouseEvent): void {
+    // if mouse is pressed on a connection then select it
+    const hoveredConnection = this.viewModel.getHoveredConnection();
+    if (hoveredConnection !== null) {
+      // if ctrl is pressed then add connection to selection
+      if (event.ctrlKey) {
+        const selectedConnections = this.viewModel.getSelectedConnections();
+        const connectionIndex = selectedConnections.indexOf(hoveredConnection);
+        if (connectionIndex === -1) {
+          selectedConnections.push(hoveredConnection);
+          this.viewModel.setSelectedConnections(selectedConnections);
+        }
+      // if ctrl is not pressed and connection is not among seleted then set is as selected
+      } else if (!this.viewModel.getSelectedConnections().includes(hoveredConnection)) {
+        this.viewModel.setSelectedConnections([hoveredConnection]);
+      }
+    }
+    // otherwise deselect unless mouse is pressed, node is hovered and ctrl is pressed
+    else if (this.viewModel.getHoveredNode() === -1 || !event.ctrlKey) {
+      this.viewModel.setSelectedConnections([]);
+    }
+  }
+
+  // End IViewController
+
+  // Private members
+  private viewModel: ViewModel;
+}
+
 //**************************************************************************************************
 // view
 //**************************************************************************************************
@@ -1152,6 +1189,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
     this.controllers.push(new NodeRemovalController(this.viewModel));
     this.controllers.push(new ConnectionHoverController(this.viewModel, this));
+    this.controllers.push(new ConnectionSelectionController(this.viewModel));
 
     // register as observer of controllers
     this.controllers.forEach(controller => controller.registerObserver(this));
@@ -1289,15 +1327,19 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
   private drawConnection(connection: Connection): void {
     // get connection color
     var connectionColor = this.viewModel.getViewStyle().connectionColor;
+    if (this.viewModel.getHoveredConnection() === connection) {
+      connectionColor = this.viewModel.getViewStyle().connectionHoveredColor;
+    } else
     if (this.viewModel.getSelectedConnections().includes(connection)) {
       connectionColor = this.viewModel.getViewStyle().connectionSelectedColor;
-    } else if (this.viewModel.getHoveredConnection() === connection) {
-      connectionColor = this.viewModel.getViewStyle().connectionHoveredColor;
-    }
+    } 
 
     // get connection width
     var connectionWidth = 1;
     if (this.viewModel.getHoveredConnection() === connection) {
+      connectionWidth = 3;
+    } else
+    if (this.viewModel.getSelectedConnections().includes(connection)) {
       connectionWidth = 2;
     }
 
