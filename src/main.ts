@@ -439,7 +439,18 @@ class ViewModel implements IModelObserver {
   onNodeChildAdded(_parent: number, _child: number): void {}
   onNodeChildRemoved(_parent: number, _child: number): void {}
   onConnectionAdded(_from: number, _to: number): void {}
-  onConnectionRemoved(_from: number, _to: number): void {}
+  onConnectionRemoved(_from: number, _to: number): void {
+    // if removed connection is selected then deselect it
+    const index = this.selectedConnections.findIndex(connection => connection.from === _from && connection.to === _to);
+    if (index !== -1) {
+      this.selectedConnections.splice(index, 1);
+      this.observers.forEach(observer => observer.onSelectedConnectionsChanged());
+    }
+    // if removed connection is hovered then deselect it
+    if (this.hoveredConnection?.from === _from && this.hoveredConnection?.to === _to) {
+      this.setHoveredConnection(null);
+    }
+  }
 
   // End IModelObserver
 
@@ -1029,7 +1040,7 @@ class ConnectionCreationController extends BaseController {
   private lastMouseMoveEvent: MouseEvent = new MouseEvent('mousemove');
 }
 
-class NodeRemovalController extends BaseController {
+class NodeAndConnectionRemovalController extends BaseController {
   constructor(viewModel: ViewModel) {
     super();
     this.viewModel = viewModel;
@@ -1038,12 +1049,13 @@ class NodeRemovalController extends BaseController {
   // Start IViewController
 
   onKeyup(event: KeyboardEvent): void {
-    // if delete is pressed then remove selected nodes
+    // if delete is pressed then remove selected nodes and connections
     if (event.key === 'Delete') {
+      // first we remove connections and then nodes to avoid connections being removed by the model on node removal
+      const selectedConnections = this.viewModel.getSelectedConnections();
       const selectedNodes = this.viewModel.getSelectedNodes();
-      selectedNodes.forEach(node => {
-        this.viewModel.getModel().destroyNode(node);
-      });
+      selectedConnections.forEach(connection => this.viewModel.getModel().removeConnection(connection.from, connection.to));
+      selectedNodes.forEach(node => this.viewModel.getModel().destroyNode(node));
     }
   }
 
@@ -1187,7 +1199,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
-    this.controllers.push(new NodeRemovalController(this.viewModel));
+    this.controllers.push(new NodeAndConnectionRemovalController(this.viewModel));
     this.controllers.push(new ConnectionHoverController(this.viewModel, this));
     this.controllers.push(new ConnectionSelectionController(this.viewModel));
 
