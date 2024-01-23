@@ -895,6 +895,10 @@ class SelectionHandler extends BaseController {
         if (nodeIndex === -1) {
           selectedNodes.push(hoveredNode);
           this.viewModel.setSelectedNodes(selectedNodes);
+        } else {
+          // if node is already selected then remove it from selection
+          selectedNodes.splice(nodeIndex, 1);
+          this.viewModel.setSelectedNodes(selectedNodes);
         }
       // if ctrl is not pressed and node is not among seleted then set is as selected
       } else if (!this.viewModel.getSelectedNodes().includes(hoveredNode)) {
@@ -1160,6 +1164,10 @@ class ConnectionSelectionController extends BaseController {
         const connectionIndex = selectedConnections.indexOf(hoveredConnection);
         if (connectionIndex === -1) {
           selectedConnections.push(hoveredConnection);
+          this.viewModel.setSelectedConnections(selectedConnections);
+        } else {
+          // if connection si already selected then deselect it
+          selectedConnections.splice(connectionIndex, 1);
           this.viewModel.setSelectedConnections(selectedConnections);
         }
       // if ctrl is not pressed and connection is not among seleted then set is as selected
