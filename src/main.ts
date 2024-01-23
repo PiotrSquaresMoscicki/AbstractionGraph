@@ -1080,6 +1080,12 @@ class ConnectionHoverController extends BaseController {
   // Start IViewController
 
   onMouseMove(event: MouseEvent): void {
+    // skip if any node is hovered
+    if (this.viewModel.getHoveredNode() !== -1) {
+      this.viewModel.setHoveredConnection(null);
+      return;
+    }
+    
     // get all connections
     const displayedParent = this.viewModel.getDisplayedParent();
     const children = this.viewModel.getModel().getChildren(displayedParent);

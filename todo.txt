@@ -1,5 +1,4 @@
 
-- remove connection
 - change abstraction levels
 - display outer connections and nodes
 - display current abstraction name
