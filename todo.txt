@@ -7,6 +7,7 @@
 
 // release 1.0.0
 
+- undo / redo
 - create node when newly created connection is dropped on empty space
 - move connection (chenge targets of connection ends)
 - rect selection

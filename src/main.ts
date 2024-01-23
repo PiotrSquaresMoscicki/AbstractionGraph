@@ -221,7 +221,9 @@ class Model {
 interface IViewModelObserver extends IModelObserver {
   onDisplayedParentChanged(): void
   onHoveredNodeChanged(): void
+  onHoveredConnectionChanged(): void
   onSelectedNodesChanged(): void
+  onSelectedConnectionsChanged(): void
   onRenamedNodeChanged(): void
   onGridSizeChanged(): void
   onViewportPositionChanged(): void
@@ -240,7 +242,8 @@ class ViewStyle {
     this.nodeSelectedBorderColor = '#007acc';
     this.nodeTextColor = '#c0c0c0';
     this.connectionColor = '#c0c0c0';
-    this.connectionArrowColor = '#c0c0c0';
+    this.connectionHoveredColor = '#007acc';
+    this.connectionSelectedColor = '#007acc';
     this.connectionArrowLength = 12;
     this.textSize = 15;
     this.textFont = 'Consolas';
@@ -255,7 +258,8 @@ class ViewStyle {
   nodeSelectedBorderColor: string;
   nodeTextColor: string;
   connectionColor: string;
-  connectionArrowColor: string;
+  connectionHoveredColor: string;
+  connectionSelectedColor: string;
   connectionArrowLength: number;
   textSize: number;
   textFont: string;
@@ -290,8 +294,16 @@ class ViewModel implements IModelObserver {
     return this.hoveredNode;
   }
 
+  getHoveredConnection(): Connection | null {
+    return this.hoveredConnection;
+  }
+
   getSelectedNodes(): number[] {
     return this.selectedNodes;
+  }
+
+  getSelectedConnections(): Connection[] {
+    return this.selectedConnections;
   }
 
   getRenamedNode(): number {
@@ -354,9 +366,23 @@ class ViewModel implements IModelObserver {
     }
   }
 
+  setHoveredConnection(connection: Connection | null): void {
+    if (this.hoveredConnection !== connection) {
+      this.hoveredConnection = connection;
+      this.observers.forEach(observer => observer.onHoveredConnectionChanged());
+      this.observers.forEach(observer => observer.onModelChanged());
+    }
+  }
+
   setSelectedNodes(indexes: number[]): void {
     this.selectedNodes = indexes;
     this.observers.forEach(observer => observer.onSelectedNodesChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
+  setSelectedConnections(connections: Connection[]): void {
+    this.selectedConnections = connections;
+    this.observers.forEach(observer => observer.onSelectedConnectionsChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
@@ -415,13 +441,19 @@ class ViewModel implements IModelObserver {
   onConnectionAdded(_from: number, _to: number): void {}
   onConnectionRemoved(_from: number, _to: number): void {}
 
+  // End IModelObserver
+
   // Private members
   private model: Model;
   private viewStyle: ViewStyle = new ViewStyle();
   private observers: IViewModelObserver[] = [];
   private displayedParent: number = 0;
+
   private hoveredNode: number = -1;
+  private hoveredConnection: Connection | null = null;
   private selectedNodes: number[] = [];
+  private selectedConnections: Connection[] = [];
+
   private renamedNode: number = -1;
   private viewportPosition: { x: number, y: number } = { x: 0, y: 0 };
   private gridSize: number = 10;
@@ -433,7 +465,7 @@ class ViewModel implements IModelObserver {
 //**************************************************************************************************
 interface IViewContext {
   getContext(): CanvasRenderingContext2D;
-  drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }): void;
+  drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }, connectionColor: string, connectionWidth: number): void;
   getConnectionPoint(fromRectangle: Rectangle, toRectangle: Rectangle): { x: number, y: number };
 }
 
@@ -928,7 +960,7 @@ class ConnectionCreationController extends BaseController {
         const nodeRectangle = this.viewModel.getRectangleInViewport(node);
         const from = viewContext.getConnectionPoint(nodeRectangle, hoveredRectangle);
         const to = viewContext.getConnectionPoint(hoveredRectangle, nodeRectangle);
-        viewContext.drawConnectionLine(from, to);
+        viewContext.drawConnectionLine(from, to, this.viewModel.getViewStyle().connectionColor, 1);
       });
     }
   }
@@ -1020,6 +1052,84 @@ class NodeRemovalController extends BaseController {
   private viewModel: ViewModel;
 }
 
+// if mouse is closer than 5 to the connection line then set it as hovered
+class ConnectionHoverController extends BaseController {
+  constructor(viewModel: ViewModel, context: IViewContext) {
+    super();
+    this.viewModel = viewModel;
+    this.context = context;
+  }
+
+  // Start IViewController
+
+  onMouseMove(event: MouseEvent): void {
+    // get all connections
+    const displayedParent = this.viewModel.getDisplayedParent();
+    const children = this.viewModel.getModel().getChildren(displayedParent);
+    const connections = children.flatMap(child => this.viewModel.getModel().getOutgoingConnections(child));
+    // get mouse position
+    const mousePosition = { x: event.clientX, y: event.clientY };
+    // get connection under cursor if any
+    const index = connections.findIndex(connection => this.isPointOnConnection(mousePosition, connection));
+    if (index !== -1) {
+      this.viewModel.setHoveredConnection(connections[index]);
+    } else {
+      this.viewModel.setHoveredConnection(null);
+    }
+  }
+
+  // End IViewController
+
+  // Private functions
+
+  private isPointOnConnection(point: { x: number, y: number }, connection: Connection): boolean {
+    // get connection points
+    const fromRectangle = this.viewModel.getRectangleInViewport(connection.from);
+    const toRectangle = this.viewModel.getRectangleInViewport(connection.to);
+    const from = this.context.getConnectionPoint(fromRectangle, toRectangle);
+    const to = this.context.getConnectionPoint(toRectangle, fromRectangle);
+    // get distance from point to line
+    const distance = this.getDistanceFromPointToLine(point, from, to);
+    // if distance is less than 5 then return true
+    return distance < 8;
+  }
+  
+  private getDistanceFromPointToLine(point: { x: number, y: number }, lineFrom: { x: number, y: number }, lineTo: { x: number, y: number }): number {
+    // calculate the bounding box from lineFrom and lineTo
+    // then increase it's size by 4 in each direction
+    // then check if point is inside the bounding box
+    // if it is then calculate distance from point to line
+    // if it is not then return the distance to the closest lineFrom or lineTo
+    const boundingBox = {
+      x: Math.min(lineFrom.x, lineTo.x) - 4,
+      y: Math.min(lineFrom.y, lineTo.y) - 4,
+      width: Math.abs(lineFrom.x - lineTo.x) + 8,
+      height: Math.abs(lineFrom.y - lineTo.y) + 8
+    };
+
+    if (point.x >= boundingBox.x && point.x <= boundingBox.x + boundingBox.width
+      && point.y >= boundingBox.y && point.y <= boundingBox.y + boundingBox.height) {
+      return this.getDistanceFromPointToLineInternal(point, lineFrom, lineTo);
+    } else {
+      const distanceFromLineFrom = Math.sqrt(Math.pow(point.x - lineFrom.x, 2) + Math.pow(point.y - lineFrom.y, 2));
+      const distanceFromLineTo = Math.sqrt(Math.pow(point.x - lineTo.x, 2) + Math.pow(point.y - lineTo.y, 2));
+      return Math.min(distanceFromLineFrom, distanceFromLineTo);
+    }
+  }
+
+  private getDistanceFromPointToLineInternal(point: { x: number, y: number }, lineFrom: { x: number, y: number }, lineTo: { x: number, y: number }): number {
+    // calculate distance from point to line
+    // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+    const numerator = Math.abs((lineTo.y - lineFrom.y) * point.x - (lineTo.x - lineFrom.x) * point.y + lineTo.x * lineFrom.y - lineTo.y * lineFrom.x);
+    const denominator = Math.sqrt(Math.pow(lineTo.y - lineFrom.y, 2) + Math.pow(lineTo.x - lineFrom.x, 2));
+    return numerator / denominator;
+  }
+
+  // Private members
+  private viewModel: ViewModel;
+  private context: IViewContext;
+}
+
 //**************************************************************************************************
 // view
 //**************************************************************************************************
@@ -1041,6 +1151,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
     this.controllers.push(new NodeRemovalController(this.viewModel));
+    this.controllers.push(new ConnectionHoverController(this.viewModel, this));
 
     // register as observer of controllers
     this.controllers.forEach(controller => controller.registerObserver(this));
@@ -1176,6 +1287,20 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
   }
 
   private drawConnection(connection: Connection): void {
+    // get connection color
+    var connectionColor = this.viewModel.getViewStyle().connectionColor;
+    if (this.viewModel.getSelectedConnections().includes(connection)) {
+      connectionColor = this.viewModel.getViewStyle().connectionSelectedColor;
+    } else if (this.viewModel.getHoveredConnection() === connection) {
+      connectionColor = this.viewModel.getViewStyle().connectionHoveredColor;
+    }
+
+    // get connection width
+    var connectionWidth = 1;
+    if (this.viewModel.getHoveredConnection() === connection) {
+      connectionWidth = 2;
+    }
+
     // get from rectangle
     var fromRectangle = this.viewModel.getRectangleInViewport(connection.from);
     // get to rectangle
@@ -1191,7 +1316,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     // get to edge
     const toConnectionPoint = this.getConnectionPoint(toRectangle, fromRectangle);
     // draw connection
-    this.drawConnectionLine(fromConnectionPoint, toConnectionPoint);
+    this.drawConnectionLine(fromConnectionPoint, toConnectionPoint, connectionColor, connectionWidth);
   }
 
   private getIntersection(line1: { startx: number, starty: number, endx: number, endy: number }, 
@@ -1287,10 +1412,10 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
   // IViewContext
   getContext(): CanvasRenderingContext2D { return this.ctx; }
 
-  drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }): void {
+  drawConnectionLine(from: { x: number, y: number }, to: { x: number, y: number }, connectionColor: string, connectionWidth: number): void {
     // draw line
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeStyle = this.viewModel.getViewStyle().connectionColor;
+    this.ctx.lineWidth = connectionWidth;
+    this.ctx.strokeStyle = connectionColor;
     this.ctx.beginPath();
     this.ctx.moveTo(from.x, from.y);
     this.ctx.lineTo(to.x, to.y);
@@ -1298,7 +1423,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     // draw arrow (filled triangle with proper orientation)
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
     const arrowLength = this.viewModel.getViewStyle().connectionArrowLength;
-    this.ctx.fillStyle = this.viewModel.getViewStyle().connectionArrowColor;
+    this.ctx.fillStyle = connectionColor;
     this.ctx.beginPath();
     this.ctx.moveTo(to.x, to.y);
     this.ctx.lineTo(to.x - arrowLength * Math.cos(angle - Math.PI / 6), to.y - arrowLength * Math.sin(angle - Math.PI / 6));
@@ -1361,7 +1486,9 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
   onConnectionRemoved(_from: number, _to: number): void {}
   onDisplayedParentChanged(): void {}
   onHoveredNodeChanged(): void {}
+  onHoveredConnectionChanged(): void {}
   onSelectedNodesChanged(): void {}
+  onSelectedConnectionsChanged(): void {}
   onRenamedNodeChanged(): void {}
   onGridSizeChanged(): void {}
   onViewportPositionChanged(): void {}
