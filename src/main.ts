@@ -611,7 +611,7 @@ class ViewportZoomController extends BaseController {
     // get zoom
     var zoom = this.viewModel.getZoom();
     // calculate new zoom
-    zoom += event.deltaY / 1000;
+    zoom -= event.deltaY / 1000;
     zoom = Math.max(0.1, zoom);
     zoom = Math.min(10, zoom);
     // zoom around the mouse cursor
