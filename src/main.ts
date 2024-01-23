@@ -261,7 +261,7 @@ class ViewStyle {
   textFont: string;
 }
 
-class ViewModel {
+class ViewModel implements IModelObserver {
   constructor(model: Model) {
     this.model = model;
   }
@@ -383,6 +383,37 @@ class ViewModel {
     this.observers.forEach(observer => observer.onZoomChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
+
+  // Start IModelObserver
+
+  onModelChanged(): void {}
+  onNodeCreated(_index: number): void {}
+
+  onNodeDestroyed(_index: number): void {
+    // if destroyed node is displayed parent then set displayed parent to root
+    if (this.displayedParent === _index) {
+      this.setDisplayedParent(this.model.getRoot());
+    }
+    // if destroyed node is selected then deselect it
+    if (this.selectedNodes.includes(_index)) {
+      this.setSelectedNodes(this.selectedNodes.filter(node => node !== _index));
+    }
+    // if destroyed node is hovered then deselect it
+    if (this.hoveredNode === _index) {
+      this.setHoveredNode(-1);
+    }
+    // if destroyed node is renamed then deselect it
+    if (this.renamedNode === _index) {
+      this.setRenamedNode(-1);
+    }
+  }
+  
+  onNodeNameChanged(_index: number): void {}
+  onNodeRectangleChanged(_index: number): void {}
+  onNodeChildAdded(_parent: number, _child: number): void {}
+  onNodeChildRemoved(_parent: number, _child: number): void {}
+  onConnectionAdded(_from: number, _to: number): void {}
+  onConnectionRemoved(_from: number, _to: number): void {}
 
   // Private members
   private model: Model;
@@ -965,6 +996,29 @@ class ConnectionCreationController extends BaseController {
   private lastMouseMoveEvent: MouseEvent = new MouseEvent('mousemove');
 }
 
+class NodeRemovalController extends BaseController {
+  constructor(viewModel: ViewModel) {
+    super();
+    this.viewModel = viewModel;
+  }
+
+  // Start IViewController
+
+  onKeyup(event: KeyboardEvent): void {
+    // if delete is pressed then remove selected nodes
+    if (event.key === 'Delete') {
+      const selectedNodes = this.viewModel.getSelectedNodes();
+      selectedNodes.forEach(node => {
+        this.viewModel.getModel().destroyNode(node);
+      });
+    }
+  }
+
+  // End IViewController
+
+  // Private members
+  private viewModel: ViewModel;
+}
 
 //**************************************************************************************************
 // view
@@ -986,6 +1040,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     this.controllers.push(new NodeMoveController(this.viewModel));
     this.controllers.push(new ViewportZoomController(this.viewModel));
     this.controllers.push(new NodeCreationAndRenameController(this.viewModel, this.canvas));
+    this.controllers.push(new NodeRemovalController(this.viewModel));
 
     // register as observer of controllers
     this.controllers.forEach(controller => controller.registerObserver(this));
