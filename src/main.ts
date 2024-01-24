@@ -110,8 +110,17 @@ class Model {
     return this.names.get(index) || '';
   }
 
-  getRectangle(index: number): Rectangle {
-    return this.rectangles.get(index) || new Rectangle(0, 0, 0, 0);
+  getRectangle(index: number, outer: number): Rectangle {
+    // get rectangle from the outer
+    const rectangles = this.rectangles.get(outer);
+    if (rectangles === undefined) {
+      throw new Error('Rectangles are undefined');
+    }
+    const rectangle = rectangles.get(index);
+    if (rectangle === undefined) {
+      throw new Error('Rectangle is undefined');
+    }
+    return rectangle;
   }
 
   getChildren(index: number): number[] {
@@ -165,6 +174,8 @@ class Model {
     this.nodes = this.nodes.filter(node => node !== index);
     this.names.delete(index);
     this.rectangles.delete(index);
+    // delete all occurances of this index rectangles on other outers
+    this.rectangles.forEach(rectangles => rectangles.delete(index));
     this.children.delete(index);
     this.connections = this.connections.filter(connection => connection.from !== index && connection.to !== index);
     this.observers.forEach(observer => observer.onNodeDestroyed(index));
@@ -177,8 +188,15 @@ class Model {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
-  setRectangle(index: number, rectangle: Rectangle): void {
-    this.rectangles.set(index, rectangle);
+  setRectangle(index: number, rectangle: Rectangle, outer: number): void {
+    // get or create rectangle map for the outer
+    var rectangles = this.rectangles.get(outer);
+    if (rectangles === undefined) {
+      rectangles = new Map<number, Rectangle>();
+      this.rectangles.set(outer, rectangles);
+    }
+    // set rectangle
+    rectangles.set(index, rectangle);
     this.observers.forEach(observer => observer.onNodeRectangleChanged(index));
     this.observers.forEach(observer => observer.onModelChanged());
   }
@@ -222,7 +240,9 @@ class Model {
   private indexGenerator: number = 1;
   private nodes: number[] = [];
   private names: Map<number, string> = new Map<number, string>();
-  private rectangles: Map<number, Rectangle> = new Map<number, Rectangle>();
+  // since we can view the same node from different abstraction levels we need to be able to store
+  // multiple rectangles for the same node depending on the abstraction level
+  private rectangles: Map<number, Map<number, Rectangle>> = new Map<number, Map<number, Rectangle>>();
   private children: Map<number, number[]> = new Map<number, number[]>();
   private connections: Connection[] = [];
 }
@@ -294,11 +314,11 @@ class ViewModel implements IModelObserver {
     return this.viewportSize;
   }
 
-  getRectangleInViewport(index: number, viewportOwner: number = this.displayedParent): Rectangle {
+  getRectangleInViewport(index: number, outer: number = this.displayedParent): Rectangle {
     // calculate rectangle position and size based on viewport position and zoom
-    const rectangle = this.model.getRectangle(index);
-    const viewportPosition = this.getViewPortPosition(viewportOwner);
-    const zoom = this.getZoom(viewportOwner);
+    const rectangle = this.model.getRectangle(index, outer);
+    const viewportPosition = this.getViewPortPosition(outer);
+    const zoom = this.getZoom(outer);
     return new Rectangle(rectangle.x * zoom - viewportPosition.x, rectangle.y * zoom - viewportPosition.y, 
       rectangle.width * zoom, rectangle.height * zoom);
   }
@@ -327,17 +347,17 @@ class ViewModel implements IModelObserver {
     return this.renamedNode;
   }
 
-  getGridSize(viewportOwner: number = this.displayedParent): number {
-    return this.gridSize * (this.zooms.get(viewportOwner) || 1);
+  getGridSize(outer: number = this.displayedParent): number {
+    return this.gridSize * (this.zooms.get(outer) || 1);
   }
 
-  getViewPortPosition(viewportOwner: number = this.displayedParent): { x: number, y: number } {
+  getViewPortPosition(outer: number = this.displayedParent): { x: number, y: number } {
     // if viewport position is not set create a bounding box around all nodes in the displayed parent
     // then center the viewport on the bounding box
-    if (!this.viewportPositions.has(viewportOwner)) {
+    if (!this.viewportPositions.has(outer)) {
       const displayedParent = this.getDisplayedParent();
       const children = this.getModel().getChildren(displayedParent);
-      const rectangles = children.map(child => this.model.getRectangle(child));
+      const rectangles = children.map(child => this.model.getRectangle(child, outer));
       const minX = Math.min(...rectangles.map(rectangle => rectangle.x));
       const minY = Math.min(...rectangles.map(rectangle => rectangle.y));
       const maxX = Math.max(...rectangles.map(rectangle => rectangle.x + rectangle.width));
@@ -362,7 +382,7 @@ class ViewModel implements IModelObserver {
       console.log('viewportPosition = ' + viewportPosition.x + ', ' + viewportPosition.y);
       return viewportPosition;
     } else {
-      const viewportPosition = this.viewportPositions.get(viewportOwner);
+      const viewportPosition = this.viewportPositions.get(outer);
       if (viewportPosition === undefined) {
         throw new Error('Viewport position is undefined');
       }
@@ -370,14 +390,24 @@ class ViewModel implements IModelObserver {
     }
   }
 
-  getZoom(viewportOwner: number = this.displayedParent): number {
-    return this.zooms.get(viewportOwner) || 1;
+  getZoom(outer: number = this.displayedParent): number {
+    return this.zooms.get(outer) || 1;
   }
 
-  getMousePositionInModel(event: MouseEvent, viewportOwner: number = this.displayedParent): { x: number, y: number } {
-    const viewportPosition = this.getViewPortPosition(viewportOwner);
-    const zoom = this.getZoom(viewportOwner);
+  getMousePositionInModel(event: MouseEvent, outer: number = this.displayedParent): { x: number, y: number } {
+    const viewportPosition = this.getViewPortPosition(outer);
+    const zoom = this.getZoom(outer);
     return { x: (event.clientX + viewportPosition.x) / zoom, y: (event.clientY + viewportPosition.y) / zoom };
+  }
+
+  // Utility functions
+
+  getRectangle(index: number): Rectangle {
+    return this.model.getRectangle(index, this.displayedParent);
+  }
+
+  setRectangle(index: number, rectangle: Rectangle): void {
+    this.model.setRectangle(index, rectangle, this.displayedParent);
   }
 
   // Mutators
@@ -397,17 +427,17 @@ class ViewModel implements IModelObserver {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
-  setRectangleInViewport(index: number, rectangle: Rectangle, viewportOwner: number = this.displayedParent): void {
+  setRectangleInViewport(index: number, rectangle: Rectangle, outer: number = this.displayedParent): void {
     // calculate rectangle position and size based on viewport position and zoom
-    const viewportPosition = this.getViewPortPosition(viewportOwner);
-    const zoom = this.getZoom(viewportOwner);
+    const viewportPosition = this.getViewPortPosition(outer);
+    const zoom = this.getZoom(outer);
     var modelRectangle = new Rectangle((rectangle.x + viewportPosition.x) / zoom, (rectangle.y + viewportPosition.y) / zoom, 
       rectangle.width / zoom, rectangle.height / zoom);
     // snap to grid
     const gridSize = this.gridSize;
     modelRectangle.x = Math.round(modelRectangle.x / gridSize) * gridSize;
     modelRectangle.y = Math.round(modelRectangle.y / gridSize) * gridSize;
-    this.model.setRectangle(index, modelRectangle);
+    this.model.setRectangle(index, modelRectangle, outer);
   }
 
   setDisplayedParent(index: number): void {
@@ -460,14 +490,14 @@ class ViewModel implements IModelObserver {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
-  setViewportPosition(position: { x: number, y: number }, viewportOwner: number = this.displayedParent): void {
-    this.viewportPositions.set(viewportOwner, position);
+  setViewportPosition(position: { x: number, y: number }, outer: number = this.displayedParent): void {
+    this.viewportPositions.set(outer, position);
     this.observers.forEach(observer => observer.onViewportPositionChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
-  setZoom(zoom: number, viewportOwner: number = this.displayedParent): void {
-    this.zooms.set(viewportOwner, zoom);
+  setZoom(zoom: number, outer: number = this.displayedParent): void {
+    this.zooms.set(outer, zoom);
     this.observers.forEach(observer => observer.onZoomChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
@@ -855,7 +885,7 @@ class NodeCreationAndRenameController extends BaseController {
         rectangle.x = Math.round(rectangle.x / gridSize) * gridSize;
         rectangle.y = Math.round(rectangle.y / gridSize) * gridSize;
         const node = this.viewModel.getModel().createNode();
-        this.viewModel.getModel().setRectangle(node, rectangle);
+        this.viewModel.setRectangle(node, rectangle);
         const displayedParent = this.viewModel.getDisplayedParent();
         this.viewModel.getModel().addChild(displayedParent, node);
         this.newNode = true;
@@ -1695,97 +1725,97 @@ const root = model.getRoot();
 
 const engine = model.createNode();
 model.setName(engine, 'Engine');
-model.setRectangle(engine, new Rectangle(450, 450, 100, 50));
+model.setRectangle(engine, new Rectangle(450, 450, 100, 50), root);
 model.addChild(root, engine);
 
   const crankshaft = model.createNode();
   model.setName(crankshaft, 'Crankshaft');
-  model.setRectangle(crankshaft, new Rectangle(450, 0, 100, 50));
+  model.setRectangle(crankshaft, new Rectangle(450, 0, 100, 50), engine);
   model.addChild(engine, crankshaft);
 
   const pistons = model.createNode();
   model.setName(pistons, 'Pistons');
-  model.setRectangle(pistons, new Rectangle(50, 50, 100, 50));
+  model.setRectangle(pistons, new Rectangle(50, 50, 100, 50), engine);
   model.addChild(engine, pistons);
 
     const piston1 = model.createNode();
     model.setName(piston1, 'Piston 1');
-    model.setRectangle(piston1, new Rectangle(50, 0, 100, 50));
+    model.setRectangle(piston1, new Rectangle(50, 0, 100, 50), pistons);
     model.addChild(pistons, piston1);
 
       const connectingRod1 = model.createNode();
       model.setName(connectingRod1, 'Connecting rod 1');
-      model.setRectangle(connectingRod1, new Rectangle(50, 50, 100, 50));
+      model.setRectangle(connectingRod1, new Rectangle(50, 50, 100, 50), piston1);
       model.addChild(piston1, connectingRod1);
 
     const piston2 = model.createNode();
     model.setName(piston2, 'Piston 2');
-    model.setRectangle(piston2, new Rectangle(50, 100, 100, 50));
+    model.setRectangle(piston2, new Rectangle(50, 100, 100, 50), pistons);
     model.addChild(pistons, piston2);
     
       const connectingRod2 = model.createNode();
       model.setName(connectingRod2, 'Connecting rod 2');
-      model.setRectangle(connectingRod2, new Rectangle(50, 50, 100, 50));
+      model.setRectangle(connectingRod2, new Rectangle(50, 50, 100, 50), piston2);
       model.addChild(piston2, connectingRod2);
 
     const piston3 = model.createNode();
     model.setName(piston3, 'Piston 3');
-    model.setRectangle(piston3, new Rectangle(50, 200, 100, 50));
+    model.setRectangle(piston3, new Rectangle(50, 200, 100, 50), pistons);
     model.addChild(pistons, piston3);
           
       const connectingRod3 = model.createNode();
       model.setName(connectingRod3, 'Connecting rod 3');
-      model.setRectangle(connectingRod3, new Rectangle(50, 50, 100, 50));
+      model.setRectangle(connectingRod3, new Rectangle(50, 50, 100, 50), piston3);
       model.addChild(piston3, connectingRod3);
 
     const piston4 = model.createNode();
     model.setName(piston4, 'Piston 4');
-    model.setRectangle(piston4, new Rectangle(50, 300, 100, 50));
+    model.setRectangle(piston4, new Rectangle(50, 300, 100, 50), pistons);
     model.addChild(pistons, piston4);
 
       const connectingRod4 = model.createNode();
       model.setName(connectingRod4, 'Connecting rod 4');
-      model.setRectangle(connectingRod4, new Rectangle(50, 50, 100, 50));
+      model.setRectangle(connectingRod4, new Rectangle(50, 50, 100, 50), piston4);
       model.addChild(piston4, connectingRod4);
 
 const wheels = model.createNode();
 model.setName(wheels, 'Wheels');
-model.setRectangle(wheels, new Rectangle(450, 50, 100, 50));
+model.setRectangle(wheels, new Rectangle(450, 50, 100, 50), root);
 model.addChild(root, wheels);
 
   const frontLeftWheel = model.createNode();
   model.setName(frontLeftWheel, 'Front left wheel');
-  model.setRectangle(frontLeftWheel, new Rectangle(50, 50, 100, 50));
+  model.setRectangle(frontLeftWheel, new Rectangle(50, 50, 100, 50), wheels);
   model.addChild(wheels, frontLeftWheel);
 
   const frontRightWheel = model.createNode();
   model.setName(frontRightWheel, 'Front right wheel');
-  model.setRectangle(frontRightWheel, new Rectangle(50, 50, 100, 50));
+  model.setRectangle(frontRightWheel, new Rectangle(50, 50, 100, 50), wheels);
   model.addChild(wheels, frontRightWheel);
 
   const backLeftWheel = model.createNode();
   model.setName(backLeftWheel, 'Back left wheel');
-  model.setRectangle(backLeftWheel, new Rectangle(50, 50, 100, 50));
+  model.setRectangle(backLeftWheel, new Rectangle(50, 50, 100, 50), wheels);
   model.addChild(wheels, backLeftWheel);
 
   const backRightWheel = model.createNode();
   model.setName(backRightWheel, 'Back right wheel');
-  model.setRectangle(backRightWheel, new Rectangle(50, 50, 100, 50));
+  model.setRectangle(backRightWheel, new Rectangle(50, 50, 100, 50), wheels);
   model.addChild(wheels, backRightWheel);
 
 const body = model.createNode();
 model.setName(body, 'Body');
-model.setRectangle(body, new Rectangle(50, 50, 100, 50));
+model.setRectangle(body, new Rectangle(50, 50, 100, 50), root);
 model.addChild(root, body);
 
 const underbody = model.createNode();
 model.setName(underbody, 'Underbody');
-model.setRectangle(underbody, new Rectangle(450, 250, 100, 50));
+model.setRectangle(underbody, new Rectangle(450, 250, 100, 50), root);
 model.addChild(root, underbody);
 
   const driveShaft = model.createNode();
   model.setName(driveShaft, 'Drive shaft');
-  model.setRectangle(driveShaft, new Rectangle(50, 50, 100, 50));
+  model.setRectangle(driveShaft, new Rectangle(50, 50, 100, 50), underbody);
   model.addChild(underbody, driveShaft);
 
 

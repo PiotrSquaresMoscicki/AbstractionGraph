@@ -16,6 +16,6 @@
 - move connection (chenge targets of connection ends)
 - rect selection
 - don't enter node rename / creation mode when double click is made with high cursor diff
-    (we don't want to trigger this controller when quickli clicking around the canvas)
+    (we don't want to trigger this controller when quickly clicking around the canvas)
 - automated tests for UI
 - handle hover and selection in both ways
