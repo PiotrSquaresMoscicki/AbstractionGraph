@@ -232,6 +232,7 @@ class Model {
 //**************************************************************************************************
 interface IViewModelObserver extends IModelObserver {
   onDisplayedParentChanged(): void
+  onViewportSizeChanged(): void
   onHoveredNodeChanged(): void
   onHoveredConnectionChanged(): void
   onSelectedNodesChanged(): void
@@ -289,6 +290,10 @@ class ViewModel implements IModelObserver {
 
   getViewStyle(): ViewStyle { return this.viewStyle; }
 
+  getViewportSize(): { width: number, height: number } {
+    return this.viewportSize;
+  }
+
   getRectangleInViewport(index: number, viewportOwner: number = this.displayedParent): Rectangle {
     // calculate rectangle position and size based on viewport position and zoom
     const rectangle = this.model.getRectangle(index);
@@ -327,7 +332,42 @@ class ViewModel implements IModelObserver {
   }
 
   getViewPortPosition(viewportOwner: number = this.displayedParent): { x: number, y: number } {
-    return this.viewportPositions.get(viewportOwner) || { x: 0, y: 0 };
+    // if viewport position is not set create a bounding box around all nodes in the displayed parent
+    // then center the viewport on the bounding box
+    if (!this.viewportPositions.has(viewportOwner)) {
+      const displayedParent = this.getDisplayedParent();
+      const children = this.getModel().getChildren(displayedParent);
+      const rectangles = children.map(child => this.model.getRectangle(child));
+      const minX = Math.min(...rectangles.map(rectangle => rectangle.x));
+      const minY = Math.min(...rectangles.map(rectangle => rectangle.y));
+      const maxX = Math.max(...rectangles.map(rectangle => rectangle.x + rectangle.width));
+      const maxY = Math.max(...rectangles.map(rectangle => rectangle.y + rectangle.height));
+      const boundingBoxWidth = (maxX - minX) * this.getZoom();
+      const boundingBoxHeight = (maxY - minY) * this.getZoom();
+      const boundingBoxCenter = { x: minX + boundingBoxWidth / 2, y: minY + boundingBoxHeight / 2 };
+      console.log('minx = ' + minX);
+      console.log('miny = ' + minY);
+      console.log('maxx = ' + maxX);
+      console.log('maxy = ' + maxY);
+      console.log('width = ' + boundingBoxWidth);
+      console.log('height = ' + boundingBoxHeight);
+      console.log('boundingBoxCenter = ' + boundingBoxCenter.x + ', ' + boundingBoxCenter.y);
+      const viewportWidth = this.getViewportSize().width;
+      const viewportHeight = this.getViewportSize().height;
+      console.log('viewportWidth = ' + viewportWidth);
+      console.log('viewportHeight = ' + viewportHeight);
+      const viewportCenter = { x: viewportWidth / 2, y: viewportHeight / 2 };
+      console.log('viewportCenter = ' + viewportCenter.x + ', ' + viewportCenter.y);
+      const viewportPosition = { x: boundingBoxCenter.x - viewportCenter.x, y: boundingBoxCenter.y - viewportCenter.y };
+      console.log('viewportPosition = ' + viewportPosition.x + ', ' + viewportPosition.y);
+      return viewportPosition;
+    } else {
+      const viewportPosition = this.viewportPositions.get(viewportOwner);
+      if (viewportPosition === undefined) {
+        throw new Error('Viewport position is undefined');
+      }
+      return viewportPosition;
+    }
   }
 
   getZoom(viewportOwner: number = this.displayedParent): number {
@@ -351,6 +391,12 @@ class ViewModel implements IModelObserver {
     this.model.unregisterObserver(observer);
   }
 
+  setViewportSize(size: { width: number, height: number }): void {
+    this.viewportSize = size;
+    this.observers.forEach(observer => observer.onViewportSizeChanged());
+    this.observers.forEach(observer => observer.onModelChanged());
+  }
+
   setRectangleInViewport(index: number, rectangle: Rectangle, viewportOwner: number = this.displayedParent): void {
     // calculate rectangle position and size based on viewport position and zoom
     const viewportPosition = this.getViewPortPosition(viewportOwner);
@@ -366,6 +412,10 @@ class ViewModel implements IModelObserver {
 
   setDisplayedParent(index: number): void {
     this.displayedParent = index;
+    // remove cached viewport position and zoom
+    this.viewportPositions.delete(index);
+    this.zooms.delete(index);
+
     this.observers.forEach(observer => observer.onDisplayedParentChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
@@ -470,6 +520,7 @@ class ViewModel implements IModelObserver {
   private model: Model;
   private viewStyle: ViewStyle = new ViewStyle();
   private observers: IViewModelObserver[] = [];
+  private viewportSize: { width: number, height: number } = { width: 0, height: 0 };
   private displayedParent: number = 0;
 
   private hoveredNode: number = -1;
@@ -697,47 +748,62 @@ class ViewportZoomController extends BaseController {
   onWheel(event: WheelEvent): void {
     // get zoom
     var zoom = this.viewModel.getZoom();
+    const viewportSize = this.viewModel.getViewportSize();
+    const viewportCenter = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
     // calculate new zoom
     zoom -= event.deltaY / 500;
-    // if zoom is smaller than min zoom then change the abstraction level to the parent of the displayed parent
     if (zoom < this.minZoom) {
+      // if zoom is smaller than min zoom then change the abstraction level to the parent of the displayed parent
       const displayedParent = this.viewModel.getDisplayedParent();
       const parent = this.viewModel.getModel().getParent(displayedParent);
       if (parent !== null) {
         this.viewModel.setDisplayedParent(parent);
-        zoom = this.maxZoom;
+        // perform zoom around the center of the viewport
+        // const viewportSize = this.viewModel.getViewportSize();
+        // const center = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
+        // this.performZoom(this.maxZoom, center);
       } else {
-        zoom = this.minZoom;
+        this.performZoom(this.minZoom, viewportCenter);
       }
-    }
-    // if zoom is bigger than max zoom then change the abstraction level to the hovered node if any
-    if (zoom > this.maxZoom) {
+    } else if (zoom > this.maxZoom) {
+      // if zoom is bigger than max zoom then change the abstraction level to the hovered node if any
       const hoveredNode = this.viewModel.getHoveredNode();
       if (hoveredNode !== -1) {
         this.viewModel.setDisplayedParent(hoveredNode);
-        zoom = this.minZoom;
+        // perform zoom around the center of the viewport
+        // const viewportSize = this.viewModel.getViewportSize();
+        // const center = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
+        // this.performZoom(this.minZoom, center);
       } else {
-        zoom = this.maxZoom;
+        this.performZoom(this.maxZoom, viewportCenter);
       }
+    } else {
+      // zoom around the mouse cursor
+      const mousePosition = { x: event.clientX, y: event.clientY };
+      this.performZoom(zoom, mousePosition);
     }
-    // zoom around the mouse cursor
-    const mousePosition = { x: event.clientX, y: event.clientY };
+  }
+  
+  // End IViewController
+
+  // Private functions
+
+  performZoom(zoom: number, center: { x: number, y: number }): void {
+    // zoom around the center
     const viewportPosition = this.viewModel.getViewPortPosition();
     const oldZoom = this.viewModel.getZoom();
-    const mousePositionInModel = { x: (mousePosition.x + viewportPosition.x) / oldZoom, y: (mousePosition.y + viewportPosition.y) / oldZoom };
-    const mousePositionInModelAfterZoom = { x: (mousePosition.x + viewportPosition.x) / zoom, y: (mousePosition.y + viewportPosition.y) / zoom };
-    const delta = { x: mousePositionInModel.x - mousePositionInModelAfterZoom.x, y: mousePositionInModel.y - mousePositionInModelAfterZoom.y };
+    const centerInModel = { x: (center.x + viewportPosition.x) / oldZoom, y: (center.y + viewportPosition.y) / oldZoom };
+    const centerInModelAfterZoom = { x: (center.x + viewportPosition.x) / zoom, y: (center.y + viewportPosition.y) / zoom };
+    const delta = { x: centerInModel.x - centerInModelAfterZoom.x, y: centerInModel.y - centerInModelAfterZoom.y };
     const viewportPositionAfterZoom = { x: viewportPosition.x + delta.x * zoom, y: viewportPosition.y + delta.y * zoom };
     this.viewModel.setViewportPosition(viewportPositionAfterZoom);
     // set zoom
     this.viewModel.setZoom(zoom);
   }
-  
-  // End IViewController
 
   // Private members
   private viewModel: ViewModel;
-  private maxZoom: number = 2;
+  private maxZoom: number = 1.5;
   private minZoom: number = 0.3;
 }
 
@@ -1238,6 +1304,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     
     // register as observer
     this.viewModel.registerObserver(this as IViewModelObserver);
+    this.viewModel.setViewportSize({ width: window.innerWidth, height: window.innerHeight });
 
     // create controllers
     this.controllers.push(new NodeHoverController(this.viewModel));
@@ -1256,7 +1323,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
 
     // add event listeners
     // redraw on resize
-    window.addEventListener('resize', () => this.draw());
+    window.addEventListener('resize', () => this.viewModel.setViewportSize({ width: window.innerWidth, height: window.innerHeight }));
     
     // mouse events
     canvas.addEventListener('mousedown', (event) => this.onMouseDown(event));
@@ -1587,6 +1654,7 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
   onConnectionAdded(_from: number, _to: number): void {}
   onConnectionRemoved(_from: number, _to: number): void {}
   onDisplayedParentChanged(): void {}
+  onViewportSizeChanged(): void {}
   onHoveredNodeChanged(): void {}
   onHoveredConnectionChanged(): void {}
   onSelectedNodesChanged(): void {}
@@ -1624,15 +1692,86 @@ var view = new View(viewModel, canvas);
 
 // create sample graph
 const root = model.getRoot();
+
 const engine = model.createNode();
 model.setName(engine, 'Engine');
 model.setRectangle(engine, new Rectangle(450, 450, 100, 50));
 model.addChild(root, engine);
 
+  const crankshaft = model.createNode();
+  model.setName(crankshaft, 'Crankshaft');
+  model.setRectangle(crankshaft, new Rectangle(450, 0, 100, 50));
+  model.addChild(engine, crankshaft);
+
+  const pistons = model.createNode();
+  model.setName(pistons, 'Pistons');
+  model.setRectangle(pistons, new Rectangle(50, 50, 100, 50));
+  model.addChild(engine, pistons);
+
+    const piston1 = model.createNode();
+    model.setName(piston1, 'Piston 1');
+    model.setRectangle(piston1, new Rectangle(50, 0, 100, 50));
+    model.addChild(pistons, piston1);
+
+      const connectingRod1 = model.createNode();
+      model.setName(connectingRod1, 'Connecting rod 1');
+      model.setRectangle(connectingRod1, new Rectangle(50, 50, 100, 50));
+      model.addChild(piston1, connectingRod1);
+
+    const piston2 = model.createNode();
+    model.setName(piston2, 'Piston 2');
+    model.setRectangle(piston2, new Rectangle(50, 100, 100, 50));
+    model.addChild(pistons, piston2);
+    
+      const connectingRod2 = model.createNode();
+      model.setName(connectingRod2, 'Connecting rod 2');
+      model.setRectangle(connectingRod2, new Rectangle(50, 50, 100, 50));
+      model.addChild(piston2, connectingRod2);
+
+    const piston3 = model.createNode();
+    model.setName(piston3, 'Piston 3');
+    model.setRectangle(piston3, new Rectangle(50, 200, 100, 50));
+    model.addChild(pistons, piston3);
+          
+      const connectingRod3 = model.createNode();
+      model.setName(connectingRod3, 'Connecting rod 3');
+      model.setRectangle(connectingRod3, new Rectangle(50, 50, 100, 50));
+      model.addChild(piston3, connectingRod3);
+
+    const piston4 = model.createNode();
+    model.setName(piston4, 'Piston 4');
+    model.setRectangle(piston4, new Rectangle(50, 300, 100, 50));
+    model.addChild(pistons, piston4);
+
+      const connectingRod4 = model.createNode();
+      model.setName(connectingRod4, 'Connecting rod 4');
+      model.setRectangle(connectingRod4, new Rectangle(50, 50, 100, 50));
+      model.addChild(piston4, connectingRod4);
+
 const wheels = model.createNode();
 model.setName(wheels, 'Wheels');
 model.setRectangle(wheels, new Rectangle(450, 50, 100, 50));
 model.addChild(root, wheels);
+
+  const frontLeftWheel = model.createNode();
+  model.setName(frontLeftWheel, 'Front left wheel');
+  model.setRectangle(frontLeftWheel, new Rectangle(50, 50, 100, 50));
+  model.addChild(wheels, frontLeftWheel);
+
+  const frontRightWheel = model.createNode();
+  model.setName(frontRightWheel, 'Front right wheel');
+  model.setRectangle(frontRightWheel, new Rectangle(50, 50, 100, 50));
+  model.addChild(wheels, frontRightWheel);
+
+  const backLeftWheel = model.createNode();
+  model.setName(backLeftWheel, 'Back left wheel');
+  model.setRectangle(backLeftWheel, new Rectangle(50, 50, 100, 50));
+  model.addChild(wheels, backLeftWheel);
+
+  const backRightWheel = model.createNode();
+  model.setName(backRightWheel, 'Back right wheel');
+  model.setRectangle(backRightWheel, new Rectangle(50, 50, 100, 50));
+  model.addChild(wheels, backRightWheel);
 
 const body = model.createNode();
 model.setName(body, 'Body');
@@ -1643,6 +1782,13 @@ const underbody = model.createNode();
 model.setName(underbody, 'Underbody');
 model.setRectangle(underbody, new Rectangle(450, 250, 100, 50));
 model.addChild(root, underbody);
+
+  const driveShaft = model.createNode();
+  model.setName(driveShaft, 'Drive shaft');
+  model.setRectangle(driveShaft, new Rectangle(50, 50, 100, 50));
+  model.addChild(underbody, driveShaft);
+
+
 
 // add connections
 model.addConnection(engine, underbody);
