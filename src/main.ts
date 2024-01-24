@@ -114,11 +114,11 @@ class Model {
     // get rectangle from the outer
     const rectangles = this.rectangles.get(outer);
     if (rectangles === undefined) {
-      throw new Error('Rectangles are undefined');
+      throw new Error('Rectangles are undefined. index: ' + index + ', outer: ' + outer);
     }
     const rectangle = rectangles.get(index);
     if (rectangle === undefined) {
-      throw new Error('Rectangle is undefined');
+      throw new Error('Rectangle is undefined. index: ' + index + ', outer: ' + outer);
     }
     return rectangle;
   }
@@ -146,6 +146,10 @@ class Model {
       }
     }
     return null;
+  }
+
+  getConnections(index: number): Connection[] {
+    return this.connections.filter(connection => connection.from === index || connection.to === index);
   }
 
   // Mutators
@@ -224,6 +228,15 @@ class Model {
     if (this.connections.some(connection => connection.from === from && connection.to === to)) {
       return;
     }
+
+    // if connection is made between two nodes that are in the same inner graph (have the same 
+    // parent (outer)) then add new rectangles to inner graphs of both these nodes
+    const fromParent = this.getParent(from);
+    const toParent = this.getParent(to);
+    if (fromParent !== null && fromParent === toParent) {
+      this.generateRectanglesForOuterConnections(from, to);
+    }
+
     this.connections.push(new Connection(from, to));
     this.observers.forEach(observer => observer.onConnectionAdded(from, to));
     this.observers.forEach(observer => observer.onModelChanged());
@@ -234,6 +247,63 @@ class Model {
     this.observers.forEach(observer => observer.onConnectionRemoved(from, to));
     this.observers.forEach(observer => observer.onModelChanged());
   }
+
+  // Private functions
+
+  private generateRectanglesForOuterConnections(from: number, to: number): void {
+    this.generateRectangleForOuterConnection(from, to);
+    this.generateRectangleForOuterConnection(to, from);
+  }
+
+  private generateRectangleForOuterConnection(outerConnectionNode: number, outer: number): void {
+    const outerOuter = this.getParent(outer) as number;
+    // check the relative position of the outer connection node to the outer (left, right, top, bottom)
+    const outerConnectionNodeRectangle = this.getRectangle(outerConnectionNode, outerOuter);
+    const outerRectangle = this.getRectangle(outer, outerOuter);
+    const outerConnectionNodeCenter = { x: outerConnectionNodeRectangle.x + outerConnectionNodeRectangle.width / 2, 
+      y: outerConnectionNodeRectangle.y + outerConnectionNodeRectangle.height / 2 };
+    const outerRectangleCenter = { x: outerRectangle.x + outerRectangle.width / 2,
+      y: outerRectangle.y + outerRectangle.height / 2 };
+    const deltaX = outerConnectionNodeCenter.x - outerRectangleCenter.x;
+    const deltaY = outerConnectionNodeCenter.y - outerRectangleCenter.y;
+    const outerConnectionNodeIsLeft = deltaX <= 0 && Math.abs(deltaX) >= Math.abs(deltaY);
+    const outerConnectionNodeIsRight = deltaX >= 0 && Math.abs(deltaX) >= Math.abs(deltaY);
+    const outerConnectionNodeIsTop = deltaY <= 0 && Math.abs(deltaY) >= Math.abs(deltaX);
+    const outerConnectionNodeIsBottom = deltaY >= 0 && Math.abs(deltaY) >= Math.abs(deltaX);
+    // calculate bounding box of all inner nodes in the outer
+    const children = this.getChildren(outer);
+    const rectangles = children.map(child => this.getRectangle(child, outer));
+    const minX = Math.min(...rectangles.map(rectangle => rectangle.x));
+    const minY = Math.min(...rectangles.map(rectangle => rectangle.y));
+    const maxX = Math.max(...rectangles.map(rectangle => rectangle.x + rectangle.width));
+    const maxY = Math.max(...rectangles.map(rectangle => rectangle.y + rectangle.height));
+    // create a rectangle with height 50 and width 100 that is positioned in the same relation to 
+    // the inner bounding box as the outer connection node is to the outer
+    const width = 100;
+    const height = 50;
+    var x: number;
+    var y: number;
+    if (outerConnectionNodeIsLeft) {
+      x = minX - width - 50;
+      y = minY + (maxY - minY) / 2 - height / 2;
+    } else if (outerConnectionNodeIsRight) {
+      x = maxX + 50;
+      y = minY + (maxY - minY) / 2 - height / 2;
+    } else if (outerConnectionNodeIsTop) {
+      x = minX + (maxX - minX) / 2 - width / 2;
+      y = minY - height - 50;
+    } else if (outerConnectionNodeIsBottom) {
+      x = minX + (maxX - minX) / 2 - width / 2;
+      y = maxY + 50;
+    } else {
+      throw new Error('Outer connection node is not left, right, top or bottom');
+    }
+
+    // set rectangle
+    const rectangle = new Rectangle(x, y, width, height);
+    this.setRectangle(outerConnectionNode, rectangle, outer);    
+  }
+    
 
   // Private members
   private observers: IModelObserver[] = [];
@@ -270,6 +340,7 @@ class ViewStyle {
     this.smallStepGridColor = '#26262d';
     this.bigStepGridColor = '#26262d';
     this.nodeColor = '#252526';
+    this.outerNodeColor = '#473954';
     this.nodeBorderColor = '#4e4e52';
     this.nodeHoveredBorderColor = '#007acc';
     this.nodeSelectedBorderColor = '#007acc';
@@ -286,6 +357,7 @@ class ViewStyle {
   smallStepGridColor: string;
   bigStepGridColor: string;
   nodeColor: string;
+  outerNodeColor: string;
   nodeBorderColor: string;
   nodeHoveredBorderColor: string;
   nodeSelectedBorderColor: string;
@@ -365,21 +437,10 @@ class ViewModel implements IModelObserver {
       const boundingBoxWidth = (maxX - minX) * this.getZoom();
       const boundingBoxHeight = (maxY - minY) * this.getZoom();
       const boundingBoxCenter = { x: minX + boundingBoxWidth / 2, y: minY + boundingBoxHeight / 2 };
-      console.log('minx = ' + minX);
-      console.log('miny = ' + minY);
-      console.log('maxx = ' + maxX);
-      console.log('maxy = ' + maxY);
-      console.log('width = ' + boundingBoxWidth);
-      console.log('height = ' + boundingBoxHeight);
-      console.log('boundingBoxCenter = ' + boundingBoxCenter.x + ', ' + boundingBoxCenter.y);
       const viewportWidth = this.getViewportSize().width;
       const viewportHeight = this.getViewportSize().height;
-      console.log('viewportWidth = ' + viewportWidth);
-      console.log('viewportHeight = ' + viewportHeight);
       const viewportCenter = { x: viewportWidth / 2, y: viewportHeight / 2 };
-      console.log('viewportCenter = ' + viewportCenter.x + ', ' + viewportCenter.y);
       const viewportPosition = { x: boundingBoxCenter.x - viewportCenter.x, y: boundingBoxCenter.y - viewportCenter.y };
-      console.log('viewportPosition = ' + viewportPosition.x + ', ' + viewportPosition.y);
       return viewportPosition;
     } else {
       const viewportPosition = this.viewportPositions.get(outer);
@@ -401,6 +462,23 @@ class ViewModel implements IModelObserver {
   }
 
   // Utility functions
+
+  getVisibleNodes(): number[] {
+    // returns children and all outer connection nodes (nodes that have the same parent as 'outer'
+    // and have connections to or from 'outer')
+    const displayedParent = this.getDisplayedParent();
+    const children = this.getModel().getChildren(displayedParent);
+    const visibleNodes = children.slice();
+    const connections = this.getModel().getConnections(displayedParent);
+    connections.forEach(connection => {
+      if (connection.from === displayedParent) {
+        visibleNodes.push(connection.to);
+      } else {
+        visibleNodes.push(connection.from);
+      }
+    });
+    return visibleNodes;
+  }
 
   getRectangle(index: number): Rectangle {
     return this.model.getRectangle(index, this.displayedParent);
@@ -1386,14 +1464,33 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     // get children
     // for each child draw its node and outgoing connections
     // draw nodes in rvers order so that the first node is drawn on top of the last node
+    const visibleNodes = this.viewModel.getVisibleNodes();
     const children = this.viewModel.getModel().getChildren(displayedParent).reverse();
+    // outer connection nodes are visibleNodes that are not children
+    const outerConnectionNodes = visibleNodes.filter(node => !children.includes(node));
+
+    // draw inner connections
     children.forEach(child => {
       this.viewModel.getModel().getOutgoingConnections(child).forEach(connection => {
         this.drawConnection(connection);
       });
     });
+    // draw outer connections
+    outerConnectionNodes.forEach(node => {
+      this.viewModel.getModel().getOutgoingConnections(node).forEach(connection => {
+        // skip if 'to' is the displayed parent
+        if (connection.to !== displayedParent) {
+          this.drawConnection(connection);
+        }
+      });
+    });
+    // draw inner nodes
     children.forEach(child => {
-      this.drawNode(child);
+      this.drawNode(child, this.viewModel.getViewStyle().nodeColor);
+    });
+    // draw outer nodes
+    outerConnectionNodes.forEach(node => {
+      this.drawNode(node, this.viewModel.getViewStyle().outerNodeColor);
     });
 
     // for each controller draw its stuff
@@ -1444,11 +1541,11 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     }
   }
 
-  private drawNode(index: number): void {
+  private drawNode(index: number, nodeColor: string): void {
     // get rectangle
     const rectangle = this.viewModel.getRectangleInViewport(index);
     // fill rect
-    this.ctx.fillStyle = this.viewModel.getViewStyle().nodeColor;
+    this.ctx.fillStyle = nodeColor;
     this.ctx.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     // draw rectangle frame (use different color if node is selected)
     if (this.viewModel.getSelectedNodes().includes(index)) {
