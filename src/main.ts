@@ -127,6 +127,18 @@ class Model {
     return this.connections.filter(connection => connection.to === index);
   }
 
+  // Utility functions
+
+  getParent(index: number): number | null {
+    // get parent of the node
+    for (const [key, value] of this.children.entries()) {
+      if (value.includes(index)) {
+        return key;
+      }
+    }
+    return null;
+  }
+
   // Mutators
   registerObserver(observer: IModelObserver): void {
     this.observers.push(observer);
@@ -277,11 +289,11 @@ class ViewModel implements IModelObserver {
 
   getViewStyle(): ViewStyle { return this.viewStyle; }
 
-  getRectangleInViewport(index: number): Rectangle {
+  getRectangleInViewport(index: number, viewportOwner: number = this.displayedParent): Rectangle {
     // calculate rectangle position and size based on viewport position and zoom
     const rectangle = this.model.getRectangle(index);
-    const viewportPosition = this.viewportPosition;
-    const zoom = this.zoom;
+    const viewportPosition = this.getViewPortPosition(viewportOwner);
+    const zoom = this.getZoom(viewportOwner);
     return new Rectangle(rectangle.x * zoom - viewportPosition.x, rectangle.y * zoom - viewportPosition.y, 
       rectangle.width * zoom, rectangle.height * zoom);
   }
@@ -310,21 +322,21 @@ class ViewModel implements IModelObserver {
     return this.renamedNode;
   }
 
-  getGridSize(): number {
-    return this.gridSize * this.zoom;
+  getGridSize(viewportOwner: number = this.displayedParent): number {
+    return this.gridSize * (this.zooms.get(viewportOwner) || 1);
   }
 
-  getViewPortPosition(): { x: number, y: number } {
-    return this.viewportPosition;
+  getViewPortPosition(viewportOwner: number = this.displayedParent): { x: number, y: number } {
+    return this.viewportPositions.get(viewportOwner) || { x: 0, y: 0 };
   }
 
-  getZoom(): number {
-    return this.zoom;
+  getZoom(viewportOwner: number = this.displayedParent): number {
+    return this.zooms.get(viewportOwner) || 1;
   }
 
-  getMousePositionInModel(event: MouseEvent): { x: number, y: number } {
-    const viewportPosition = this.viewportPosition;
-    const zoom = this.zoom;
+  getMousePositionInModel(event: MouseEvent, viewportOwner: number = this.displayedParent): { x: number, y: number } {
+    const viewportPosition = this.getViewPortPosition(viewportOwner);
+    const zoom = this.getZoom(viewportOwner);
     return { x: (event.clientX + viewportPosition.x) / zoom, y: (event.clientY + viewportPosition.y) / zoom };
   }
 
@@ -339,10 +351,10 @@ class ViewModel implements IModelObserver {
     this.model.unregisterObserver(observer);
   }
 
-  setRectangleInViewport(index: number, rectangle: Rectangle): void {
+  setRectangleInViewport(index: number, rectangle: Rectangle, viewportOwner: number = this.displayedParent): void {
     // calculate rectangle position and size based on viewport position and zoom
-    const viewportPosition = this.viewportPosition;
-    const zoom = this.zoom;
+    const viewportPosition = this.getViewPortPosition(viewportOwner);
+    const zoom = this.getZoom(viewportOwner);
     var modelRectangle = new Rectangle((rectangle.x + viewportPosition.x) / zoom, (rectangle.y + viewportPosition.y) / zoom, 
       rectangle.width / zoom, rectangle.height / zoom);
     // snap to grid
@@ -398,14 +410,14 @@ class ViewModel implements IModelObserver {
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
-  setViewportPosition(position: { x: number, y: number }): void {
-    this.viewportPosition = position;
+  setViewportPosition(position: { x: number, y: number }, viewportOwner: number = this.displayedParent): void {
+    this.viewportPositions.set(viewportOwner, position);
     this.observers.forEach(observer => observer.onViewportPositionChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
 
-  setZoom(zoom: number): void {
-    this.zoom = zoom;
+  setZoom(zoom: number, viewportOwner: number = this.displayedParent): void {
+    this.zooms.set(viewportOwner, zoom);
     this.observers.forEach(observer => observer.onZoomChanged());
     this.observers.forEach(observer => observer.onModelChanged());
   }
@@ -466,9 +478,10 @@ class ViewModel implements IModelObserver {
   private selectedConnections: Connection[] = [];
 
   private renamedNode: number = -1;
-  private viewportPosition: { x: number, y: number } = { x: 0, y: 0 };
   private gridSize: number = 10;
-  private zoom: number = 1;
+
+  private viewportPositions = new Map<number, { x: number, y: number }>();
+  private zooms = new Map<number, number>();
 }
 
 //**************************************************************************************************
@@ -685,9 +698,28 @@ class ViewportZoomController extends BaseController {
     // get zoom
     var zoom = this.viewModel.getZoom();
     // calculate new zoom
-    zoom -= event.deltaY / 1000;
-    zoom = Math.max(0.1, zoom);
-    zoom = Math.min(10, zoom);
+    zoom -= event.deltaY / 500;
+    // if zoom is smaller than min zoom then change the abstraction level to the parent of the displayed parent
+    if (zoom < this.minZoom) {
+      const displayedParent = this.viewModel.getDisplayedParent();
+      const parent = this.viewModel.getModel().getParent(displayedParent);
+      if (parent !== null) {
+        this.viewModel.setDisplayedParent(parent);
+        zoom = this.maxZoom;
+      } else {
+        zoom = this.minZoom;
+      }
+    }
+    // if zoom is bigger than max zoom then change the abstraction level to the hovered node if any
+    if (zoom > this.maxZoom) {
+      const hoveredNode = this.viewModel.getHoveredNode();
+      if (hoveredNode !== -1) {
+        this.viewModel.setDisplayedParent(hoveredNode);
+        zoom = this.minZoom;
+      } else {
+        zoom = this.maxZoom;
+      }
+    }
     // zoom around the mouse cursor
     const mousePosition = { x: event.clientX, y: event.clientY };
     const viewportPosition = this.viewModel.getViewPortPosition();
@@ -705,6 +737,8 @@ class ViewportZoomController extends BaseController {
 
   // Private members
   private viewModel: ViewModel;
+  private maxZoom: number = 2;
+  private minZoom: number = 0.3;
 }
 
 class NodeCreationAndRenameController extends BaseController {

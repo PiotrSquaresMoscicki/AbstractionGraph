@@ -1,14 +1,19 @@
 
 - change abstraction levels
+- remember last viewport position and viewport zoom for nodes before changing abstraction levels
 - display outer connections and nodes
 - display current abstraction name
 - fill readme
 
 // release 1.0.0
 
+- adjust zoom levels min and max for smooth grid transition
+- support for touch events
 - undo / redo
 - create node when newly created connection is dropped on empty space
 - move connection (chenge targets of connection ends)
 - rect selection
 - don't enter node rename / creation mode when double click is made with high cursor diff
     (we don't want to trigger this controller when quickli clicking around the canvas)
+- automated tests for UI
+- handle hover and selection in both ways
