@@ -1,4 +1,5 @@
 
+- fix exception on deleting node
 - wait half a second after reachinv the zoom limit before accepting another zoom action in the 
     same direction and changine the abstraction level
 - play abstraction level change animation (half a second?) to mitigate the effect of scrolling 

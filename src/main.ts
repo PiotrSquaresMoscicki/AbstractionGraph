@@ -181,6 +181,12 @@ class Model {
     // delete all occurances of this index rectangles on other outers
     this.rectangles.forEach(rectangles => rectangles.delete(index));
     this.children.delete(index);
+    this.children.forEach(children => {
+      const childIndex = children.indexOf(index);
+      if (childIndex !== -1) {
+        children.splice(childIndex, 1);
+      }
+    });
     this.connections = this.connections.filter(connection => connection.from !== index && connection.to !== index);
     this.observers.forEach(observer => observer.onNodeDestroyed(index));
     this.observers.forEach(observer => observer.onModelChanged());
@@ -207,6 +213,10 @@ class Model {
 
   addChild(parent: number, child: number): void {
     const children = this.children.get(parent) || [];
+    // make sure we don't add the same child for the same parent twice
+    if (children.includes(child)) {
+      return;
+    }
     children.push(child);
     this.children.set(parent, children);
     this.observers.forEach(observer => observer.onNodeChildAdded(parent, child));
@@ -1267,6 +1277,7 @@ class NodeAndConnectionRemovalController extends BaseController {
       const selectedConnections = this.viewModel.getSelectedConnections();
       const selectedNodes = this.viewModel.getSelectedNodes();
       selectedConnections.forEach(connection => this.viewModel.getModel().removeConnection(connection.from, connection.to));
+      console.log(selectedNodes);
       selectedNodes.forEach(node => this.viewModel.getModel().destroyNode(node));
     }
   }
