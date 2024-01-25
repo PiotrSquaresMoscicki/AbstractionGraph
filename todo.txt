@@ -1,10 +1,10 @@
 
-- fix exception on deleting node
+- fix grid in nodes with no children
 - wait half a second after reachinv the zoom limit before accepting another zoom action in the 
     same direction and changine the abstraction level
 - play abstraction level change animation (half a second?) to mitigate the effect of scrolling 
     in a place not intended by the user 
-- display outer connections and nodes
+- display outer connections
 - display current abstraction name
 - fill readme
 

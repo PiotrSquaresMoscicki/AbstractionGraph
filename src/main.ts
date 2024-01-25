@@ -742,15 +742,14 @@ class NodeHoverController extends BaseController {
 
   private updateHoveredNode(cursorPosition: { x: number, y: number }): void {
     // if mouse is hovered over a node then set it as hovered node
-    const displayedParent = this.viewModel.getDisplayedParent();
-    const children = this.viewModel.getModel().getChildren(displayedParent);
-    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+    const visibleNodes = this.viewModel.getVisibleNodes();
+    const rectangles = visibleNodes.map(child => this.viewModel.getRectangleInViewport(child));
     const index = rectangles.findIndex(rectangle => cursorPosition.x >= rectangle.x 
         && cursorPosition.x <= rectangle.x + rectangle.width 
         && cursorPosition.y >= rectangle.y 
         && cursorPosition.y <= rectangle.y + rectangle.height);
     if (index !== -1) {
-      this.viewModel.setHoveredNode(children[index]);
+      this.viewModel.setHoveredNode(visibleNodes[index]);
     } else {
       this.viewModel.setHoveredNode(-1);
     }
@@ -921,7 +920,7 @@ class ViewportZoomController extends BaseController {
 
   // Private members
   private viewModel: ViewModel;
-  private maxZoom: number = 1.5;
+  private maxZoom: number = 2;
   private minZoom: number = 0.3;
 }
 
@@ -1277,7 +1276,6 @@ class NodeAndConnectionRemovalController extends BaseController {
       const selectedConnections = this.viewModel.getSelectedConnections();
       const selectedNodes = this.viewModel.getSelectedNodes();
       selectedConnections.forEach(connection => this.viewModel.getModel().removeConnection(connection.from, connection.to));
-      console.log(selectedNodes);
       selectedNodes.forEach(node => this.viewModel.getModel().destroyNode(node));
     }
   }
