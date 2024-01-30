@@ -114,11 +114,13 @@ class Model {
     // get rectangle from the outer
     const rectangles = this.rectangles.get(outer);
     if (rectangles === undefined) {
-      throw new Error('Rectangles are undefined. index: ' + index + ', outer: ' + outer);
+      throw new Error('Rectangles are undefined. index: ' + index + ', outer: ' + outer 
+        + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     const rectangle = rectangles.get(index);
     if (rectangle === undefined) {
-      throw new Error('Rectangle is undefined. index: ' + index + ', outer: ' + outer);
+      throw new Error('Rectangle is undefined. index: ' + index + ', outer: ' + outer
+        + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     return rectangle;
   }
@@ -488,6 +490,14 @@ class ViewModel implements IModelObserver {
       }
     });
     return visibleNodes;
+  }
+
+  getVisibleConnections(): Connection[] {
+    // returns connections that are between visible nodes
+    const visibleNodes = this.getVisibleNodes();
+    // for each visible node get its outgoing connections
+    const visibleConnections = visibleNodes.map(node => this.getModel().getOutgoingConnections(node));
+    // remove connections to or from displayedParent
   }
 
   getRectangle(index: number): Rectangle {
@@ -1175,9 +1185,8 @@ class ConnectionCreationController extends BaseController {
       const selectedNodes = this.viewModel.getSelectedNodes();
       const mousePosition = { x: this.lastMouseMoveEvent.clientX, y: this.lastMouseMoveEvent.clientY };
       // get node under cursor if any
-      const displayedParent = this.viewModel.getDisplayedParent();
-      const children = this.viewModel.getModel().getChildren(displayedParent);
-      const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+      const visibleNodes = this.viewModel.getVisibleNodes();
+      const rectangles = visibleNodes.map(child => this.viewModel.getRectangleInViewport(child));
       const index = rectangles.findIndex(rectangle => mousePosition.x >= rectangle.x 
           && mousePosition.x <= rectangle.x + rectangle.width 
           && mousePosition.y >= rectangle.y 
@@ -1186,7 +1195,7 @@ class ConnectionCreationController extends BaseController {
       const hoveredRectangle = index === -1 ? new Rectangle(mousePosition.x - 1, mousePosition.y - 1, 2, 2) : rectangles[index];
       
       selectedNodes.forEach(node => {
-        if (node === children[index]) {
+        if (node === visibleNodes[index]) {
           return;
         }
 
@@ -1303,10 +1312,7 @@ class ConnectionHoverController extends BaseController {
       return;
     }
     
-    // get all connections
-    const displayedParent = this.viewModel.getDisplayedParent();
-    const children = this.viewModel.getModel().getChildren(displayedParent);
-    const connections = children.flatMap(child => this.viewModel.getModel().getOutgoingConnections(child));
+    const connections = this.viewModel.getVisibleConnections();
     // get mouse position
     const mousePosition = { x: event.clientX, y: event.clientY };
     // get connection under cursor if any
@@ -1477,21 +1483,11 @@ class View implements IViewModelObserver, IViewContext, IViewControllerObserver 
     const children = this.viewModel.getModel().getChildren(displayedParent).reverse();
     // outer connection nodes are visibleNodes that are not children
     const outerConnectionNodes = visibleNodes.filter(node => !children.includes(node));
+    const visibleConnections = this.viewModel.getVisibleConnections();
 
-    // draw inner connections
-    children.forEach(child => {
-      this.viewModel.getModel().getOutgoingConnections(child).forEach(connection => {
-        this.drawConnection(connection);
-      });
-    });
-    // draw outer connections
-    outerConnectionNodes.forEach(node => {
-      this.viewModel.getModel().getOutgoingConnections(node).forEach(connection => {
-        // skip if 'to' is the displayed parent
-        if (connection.to !== displayedParent) {
-          this.drawConnection(connection);
-        }
-      });
+    // draw connections
+    visibleConnections.forEach(connection => {
+      this.drawConnection(connection);
     });
     // draw inner nodes
     children.forEach(child => {
