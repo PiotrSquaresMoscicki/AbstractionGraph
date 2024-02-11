@@ -441,6 +441,12 @@ class ViewModel implements IModelObserver {
     if (!this.viewportPositions.has(outer)) {
       const displayedParent = this.getDisplayedParent();
       const children = this.getModel().getChildren(displayedParent);
+      
+      // return 0,0 if there are no children
+      if (children.length === 0) {
+        return { x: 0, y: 0 };
+      }
+
       const rectangles = children.map(child => this.model.getRectangle(child, outer));
       const minX = Math.min(...rectangles.map(rectangle => rectangle.x));
       const minY = Math.min(...rectangles.map(rectangle => rectangle.y));
