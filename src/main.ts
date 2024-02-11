@@ -498,6 +498,7 @@ class ViewModel implements IModelObserver {
     // for each visible node get its outgoing connections
     const visibleConnections = visibleNodes.map(node => this.getModel().getOutgoingConnections(node));
     // remove connections to or from displayedParent
+    return visibleConnections.flat().filter(connection => visibleNodes.includes(connection.from) && visibleNodes.includes(connection.to));
   }
 
   getRectangle(index: number): Rectangle {
