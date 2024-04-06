@@ -459,6 +459,10 @@ class ViewModel implements IModelObserver {
       const viewportHeight = this.getViewportSize().height;
       const viewportCenter = { x: viewportWidth / 2, y: viewportHeight / 2 };
       const viewportPosition = { x: boundingBoxCenter.x - viewportCenter.x, y: boundingBoxCenter.y - viewportCenter.y };
+
+      // set viewport position
+      this.viewportPositions.set(outer, viewportPosition);
+
       return viewportPosition;
     } else {
       const viewportPosition = this.viewportPositions.get(outer);
