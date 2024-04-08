@@ -172,6 +172,9 @@ model.addConnection(engine, underbody);
 model.addConnection(wheels, underbody);
 model.addConnection(body, underbody);
 
+model.addConnection(wheels, driveShaft);
+model.addConnection(engine, driveShaft);
+
 
 // set root as current displayed parent
 viewModel.setDisplayedParent(root);

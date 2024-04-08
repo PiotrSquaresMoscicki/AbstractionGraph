@@ -1,5 +1,4 @@
 
-- write down the specification
 - handle outer nodes deletion (don't delete node but only remove connections)
 - wait half a second after reachinv the zoom limit before accepting another zoom action in the 
     same direction and changine the abstraction level
@@ -8,6 +7,7 @@
 - display outer connections
 - display current abstraction name
 - fill readme
+- write down the specification
 
 // release 1.0.0
 

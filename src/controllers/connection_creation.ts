@@ -83,14 +83,13 @@ export class ConnectionCreationController extends BaseController {
   private finishConnection(): void {
     // get hovered node (but not from model as hover controller is not active when this controller
     // is active)
-    const displayedParent = this.viewModel.getDisplayedParent();
-    const children = this.viewModel.getModel().getChildren(displayedParent);
-    const rectangles = children.map(child => this.viewModel.getRectangleInViewport(child));
+    const visibleNodes = this.viewModel.getVisibleNodes();
+    const rectangles = visibleNodes.map(child => this.viewModel.getRectangleInViewport(child));
     const index = rectangles.findIndex(rectangle => this.lastMouseMoveEvent.clientX >= rectangle.x 
         && this.lastMouseMoveEvent.clientX <= rectangle.x + rectangle.width 
         && this.lastMouseMoveEvent.clientY >= rectangle.y 
         && this.lastMouseMoveEvent.clientY <= rectangle.y + rectangle.height);
-    const hoveredNode = index === -1 ? -1 : children[index];
+    const hoveredNode = index === -1 ? -1 : visibleNodes[index];
     // if hovered node is not -1 then create connection
     if (hoveredNode !== -1) {
       // get selected nodes

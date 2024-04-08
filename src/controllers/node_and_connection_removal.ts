@@ -16,7 +16,12 @@ export class NodeAndConnectionRemovalController extends BaseController {
       const selectedConnections = this.viewModel.getSelectedConnections();
       const selectedNodes = this.viewModel.getSelectedNodes();
       selectedConnections.forEach(connection => this.viewModel.getModel().removeConnection(connection.from, connection.to));
-      selectedNodes.forEach(node => this.viewModel.getModel().destroyNode(node));
+      // remove nodes but only if they are in the same abstraction lavel as the currently displayed one
+      selectedNodes.forEach(node => {
+        if (this.viewModel.getModel().getParent(node) === this.viewModel.getDisplayedParent()) {
+          this.viewModel.getModel().destroyNode(node);
+        }
+      });
     }
   }
 
