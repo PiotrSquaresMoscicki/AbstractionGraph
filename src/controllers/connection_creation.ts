@@ -96,7 +96,13 @@ export class ConnectionCreationController extends BaseController {
       const selectedNodes = this.viewModel.getSelectedNodes();
       // for each selected node create connection
       selectedNodes.forEach(node => {
-        this.viewModel.getModel().addConnection(node, hoveredNode);
+        // don't allow for creating connections between two outer nodes
+        const nodeParent = this.viewModel.getModel().getParent(node);
+        const hoveredNodeParent = this.viewModel.getModel().getParent(hoveredNode);
+        const displayedParentParent = this.viewModel.getModel().getParent(this.viewModel.getDisplayedParent());
+        if (nodeParent !== displayedParentParent || hoveredNodeParent !== displayedParentParent) {
+          this.viewModel.getModel().addConnection(node, hoveredNode);
+        }
       });
     }
     // set controller inactive
