@@ -160,10 +160,15 @@ export class ViewModel implements IModelObserver {
     const children = this.getModel().getChildren(displayedParent);
     const visibleNodes = children.slice();
     const connections = this.getModel().getConnections(displayedParent);
+    // add only nodes that have the same parent as displayedParent
     connections.forEach(connection => {
-      if (connection.from === displayedParent) {
+      if (connection.from === displayedParent 
+        && this.getModel().getParent(connection.to) === this.getModel().getParent(displayedParent)
+      ) {
         visibleNodes.push(connection.to);
-      } else {
+      } else if (connection.to === displayedParent
+        && this.getModel().getParent(connection.from) === this.getModel().getParent(displayedParent)
+      ) {
         visibleNodes.push(connection.from);
       }
     });
@@ -175,7 +180,7 @@ export class ViewModel implements IModelObserver {
     const visibleNodes = this.getVisibleNodes();
     // for each visible node get its outgoing connections
     const visibleConnections = visibleNodes.map(node => this.getModel().getOutgoingConnections(node));
-    // remove connections to or from displayedParent
+    // remove connections to or from displayedParent and connections between 
     return visibleConnections.flat().filter(connection => visibleNodes.includes(connection.from) && visibleNodes.includes(connection.to));
   }
 

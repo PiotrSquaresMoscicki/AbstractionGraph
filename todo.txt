@@ -1,5 +1,7 @@
 
-- handle outer nodes deletion (don't delete node but only remove connections)
+- don't draw connections between two outer nodes
+- when removing connection from node a to node b remove all connections from any children of b to 
+    a or any children of a and the same goes in other direction
 - wait half a second after reachinv the zoom limit before accepting another zoom action in the 
     same direction and changine the abstraction level
 - play abstraction level change animation (half a second?) to mitigate the effect of scrolling 
