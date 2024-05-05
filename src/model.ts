@@ -263,3 +263,13 @@ export class Model {
   private children: Map<number, number[]> = new Map<number, number[]>();
   private connections: Connection[] = [];
 }
+
+export class ModelUtils {
+  static createNode(model: Model, name: string, rectangle: Rectangle, outer: number): number {
+    const node = model.createNode();
+    model.setName(node, name);
+    model.setRectangle(node, rectangle, outer);
+    model.addChild(outer, node);
+    return node;
+  }
+}
