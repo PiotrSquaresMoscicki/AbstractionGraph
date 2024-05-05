@@ -1,5 +1,6 @@
 
-- don't draw connections between two outer nodes
+- add unit tests framework
+- display both types of outer nodes - outgoing and incoming connections
 - when removing connection from node a to node b remove all connections from any children of b to 
     a or any children of a and the same goes in other direction
 - wait half a second after reachinv the zoom limit before accepting another zoom action in the 
