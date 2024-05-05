@@ -89,6 +89,10 @@ export class Model {
     return this.connections.filter(connection => connection.from === index || connection.to === index);
   }
 
+  getNodesWithName(name: string): number[] {
+    return this.nodes.filter(node => this.getName(node) === name);
+  }
+
   // Mutators
   registerObserver(observer: IModelObserver): void {
     this.observers.push(observer);
