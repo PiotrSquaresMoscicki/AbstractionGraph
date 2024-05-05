@@ -35,3 +35,6 @@
 
 # Ignore Windows specific files
 Thumbs.db
+
+# Ignore coverage reports
+coverage/
