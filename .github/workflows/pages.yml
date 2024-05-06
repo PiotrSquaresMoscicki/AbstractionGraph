@@ -1,9 +1,10 @@
 name: Deploy Abstraction Graph To Pages
 
 on:
-  push:
-    branches: ['dev-ts']
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Run Tests"] # Name of your tests workflow
+    types:
+      - completed
 
 # Sets the GITHUB_TOKEN permissions to allow deployment to GitHub Pages
 permissions:
