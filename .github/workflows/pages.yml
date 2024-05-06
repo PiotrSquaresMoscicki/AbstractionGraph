@@ -3,7 +3,6 @@ name: Deploy Abstraction Graph To Pages
 on:
   workflow_run:
     workflows: [Run Tests]
-    types: [completed]
 
 # Sets the GITHUB_TOKEN permissions to allow deployment to GitHub Pages
 permissions:
