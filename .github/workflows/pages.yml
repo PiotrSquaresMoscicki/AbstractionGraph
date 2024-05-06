@@ -2,7 +2,7 @@ name: Deploy Abstraction Graph To Pages
 
 on:
   workflow_run:
-    workflows: ["Run Tests"] # Name of your tests workflow
+    workflows: [Run Tests] # Name of your tests workflow
     types: [completed]
     branches: ['dev-ts']
 
