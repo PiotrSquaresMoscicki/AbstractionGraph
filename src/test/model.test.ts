@@ -239,3 +239,76 @@ describe('Get parent of a non-existing node should return null', () => {
     expect(parent).toBeNull();
   });
 });
+
+//************************************************************************************************
+describe('Get outgoing connections for driveshaft node', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Get outgoing connections for driveshaft node', () => {
+    const driveshaftNodes= model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    const connections = model.getOutgoingConnections(driveshaftNode);
+    expect(connections.length).toEqual(2);
+    expect(model.getName(connections[0].to)).toEqual('Engine');
+    expect(model.getName(connections[1].to)).toEqual('Crankshaft');
+  });
+});
+  
+//************************************************************************************************
+describe('Get outgoing connections for a non-existing node should return an empty array', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Get outgoing connections for a non-existing node should return an empty array', () => {
+    const connections = model.getOutgoingConnections(123);
+    expect(connections.length).toEqual(0);
+  });
+});
+
+//************************************************************************************************
+describe('Get incoming connections for driveshaft node', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Get incoming connections for driveshaft node', () => {
+    const driveshaftNodes= model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    const connections = model.getIncomingConnections(driveshaftNode);
+    expect(connections.length).toEqual(3);
+    expect(model.getName(connections[0].from)).toEqual('Wheels');
+    expect(model.getName(connections[1].from)).toEqual('Wheel 1');
+    expect(model.getName(connections[2].from)).toEqual('Wheel 2');
+  });
+});
+
+//************************************************************************************************
+describe('Get incoming connections for a non-existing node should return an empty array', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Get incoming connections for a non-existing node should return an empty array', () => {
+    const connections = model.getIncomingConnections(123);
+    expect(connections.length).toEqual(0);
+  });
+});
+
+//************************************************************************************************
