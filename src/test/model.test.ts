@@ -187,8 +187,15 @@ describe('Get engine children', () => {
     const engineNode = engineNodes[0];
     const children = model.getChildren(engineNode);
     expect(children.length).toEqual(2);
-    expect(model.getName(children[0])).toEqual('Pistons');
-    expect(model.getName(children[1])).toEqual('Crankshaft');
+    // connections are not ordered
+    let pistonsConnection = model.getConnections(engineNode).find(
+      connection => model.getName(connection.to) === 'Pistons' && model.getName(connection.from) === 'Engine'
+    );
+    expect(pistonsConnection).not.toBeNull();
+    let crankshaftConnection = model.getConnections(engineNode).find(
+      connection => model.getName(connection.to) === 'Crankshaft' && model.getName(connection.from) === 'Engine'
+    );
+    expect(crankshaftConnection).not.toBeNull();
   });
 });
 
@@ -255,8 +262,15 @@ describe('Get outgoing connections for driveshaft node', () => {
     const driveshaftNode = driveshaftNodes[0];
     const connections = model.getOutgoingConnections(driveshaftNode);
     expect(connections.length).toEqual(2);
-    expect(model.getName(connections[0].to)).toEqual('Engine');
-    expect(model.getName(connections[1].to)).toEqual('Crankshaft');
+    // connections are not ordered
+    let engineConnection = connections.find(
+      connection => model.getName(connection.to) === 'Engine' && model.getName(connection.from) === 'Driveshaft'
+    );
+    expect(engineConnection).not.toBeNull();
+    let crankshaftConnection = connections.find(
+      connection => model.getName(connection.to) === 'Crankshaft' && model.getName(connection.from) === 'Driveshaft'
+    );
+    expect(crankshaftConnection).not.toBeNull();
   });
 });
   
@@ -290,9 +304,19 @@ describe('Get incoming connections for driveshaft node', () => {
     const driveshaftNode = driveshaftNodes[0];
     const connections = model.getIncomingConnections(driveshaftNode);
     expect(connections.length).toEqual(3);
-    expect(model.getName(connections[0].from)).toEqual('Wheels');
-    expect(model.getName(connections[1].from)).toEqual('Wheel 1');
-    expect(model.getName(connections[2].from)).toEqual('Wheel 2');
+    // connections are not ordered
+    let wheelsConnection = connections.find(
+      connection => model.getName(connection.from) === 'Wheels' && model.getName(connection.to) === 'Driveshaft'
+    );
+    expect(wheelsConnection).not.toBeNull();
+    let wheel1Connection = connections.find(
+      connection => model.getName(connection.from) === 'Wheel 1' && model.getName(connection.to) === 'Driveshaft'
+    );
+    expect(wheel1Connection).not.toBeNull();
+    let wheel2Connection = connections.find(
+      connection => model.getName(connection.from) === 'Wheel 2' && model.getName(connection.to) === 'Driveshaft'
+    );
+    expect(wheel2Connection).not.toBeNull();
   });
 });
 
@@ -312,3 +336,40 @@ describe('Get incoming connections for a non-existing node should return an empt
 });
 
 //************************************************************************************************
+describe('Get all driveshaft connections', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Get all driveshaft connections', () => {
+    const driveshaftNodes= model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    const connections = model.getConnections(driveshaftNode);
+    expect(connections.length).toEqual(5);
+    // connections are not ordered
+    let engineConnection = connections.find(
+      connection => model.getName(connection.to) === 'Engine' && model.getName(connection.from) === 'Driveshaft'
+    );
+    expect(engineConnection).not.toBeNull();
+    let crankshaftConnection = connections.find(
+      connection => model.getName(connection.to) === 'Crankshaft' && model.getName(connection.from) === 'Driveshaft'
+    );
+    expect(crankshaftConnection).not.toBeNull();
+    let wheelsConnection = connections.find(
+      connection => model.getName(connection.to) === 'Driveshaft' && model.getName(connection.from) === 'Wheels'
+    );
+    expect(wheelsConnection).not.toBeNull();
+    let wheel1Connection = connections.find(
+      connection => model.getName(connection.to) === 'Driveshaft' && model.getName(connection.from) === 'Wheel 1'
+    );
+    expect(wheel1Connection).not.toBeNull();
+    let wheel2Connection = connections.find(
+      connection => model.getName(connection.to) === 'Driveshaft' && model.getName(connection.from) === 'Wheel 2'
+    );
+    expect(wheel2Connection).not.toBeNull();
+  });
+});
