@@ -119,6 +119,10 @@ export class Model {
   }
 
   getConnections(index: number): Connection[] {
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
+    
     return this.connections.filter(connection => connection.from === index || connection.to === index);
   }
 

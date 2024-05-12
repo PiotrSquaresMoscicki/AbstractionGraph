@@ -403,7 +403,7 @@ describe('Get all driveshaft connections', () => {
 });
 
 //************************************************************************************************
-describe('Get all connections for a non-existing node should return an empty array', () => {
+describe('Get all connections for a non-existing node should throw an error', () => {
   let model: Model;
 
   beforeEach(() => {
@@ -411,9 +411,8 @@ describe('Get all connections for a non-existing node should return an empty arr
     createSampleGraph(model);
   });
 
-  test('Get all connections for a non-existing node should return an empty array', () => {
-    const connections = model.getConnections(123);
-    expect(connections.length).toEqual(0);
+  test('Get all connections for a non-existing node should throw an error', () => {
+    expect(() => model.getConnections(123)).toThrow();
   });
 });
 
