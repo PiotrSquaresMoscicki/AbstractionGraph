@@ -671,3 +671,49 @@ describe('Export to yaml', () => {
     expect(yaml).toEqual(expectedYaml);
   });
 });
+
+//************************************************************************************************
+describe('Destroying invalid node should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Destroying invalid node should throw an error', () => {
+    expect(() => model.destroyNode(123)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Add child on wheel 1 to engine', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Add child on wheel 1 to engine', () => {
+    const wheel1Nodes = model.getNodesWithName('Wheel 1');
+    expect(wheel1Nodes.length).toEqual(1);
+    const wheel1Node = wheel1Nodes[0];
+    const engineNodes = model.getNodesWithName('Engine');
+    expect(engineNodes.length).toEqual(1);
+    const engineNode = engineNodes[0];
+    const wheel1Parent = model.getParent(wheel1Node) as number;
+    expect(model.getName(wheel1Parent)).toEqual('Wheels');
+
+    model.addChild(engineNode, wheel1Node);
+
+    // wheels should have only one child
+    const wheels = model.getNodesWithName('Wheels');
+    expect(wheels.length).toEqual(1);
+    const wheelsChildren = model.getChildren(wheels[0]);
+    expect(wheelsChildren.length).toEqual(1);
+    // egine should have three children
+    const engineChildren = model.getChildren(engineNode);
+    expect(engineChildren.length).toEqual(3);
+  });
+});

@@ -114,12 +114,17 @@ export class Model {
       index = this.indexGenerator++;
     }
     this.nodes.push(index);
+    // add to root children
+    this.addChild(0, index);
     this.observers.forEach(observer => observer.onNodeCreated(index));
     this.observers.forEach(observer => observer.onModelChanged());
     return index;
   }
 
   destroyNode(index: number): void {
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
     this.nodes = this.nodes.filter(node => node !== index);
     this.names.delete(index);
     this.rectangles.delete(index);
@@ -157,6 +162,16 @@ export class Model {
   }
 
   addChild(parent: number, child: number): void {
+    // remove child from the previous parent
+    const previousParent = this.getParent(child);
+    if (previousParent !== null) {
+      var previousChildren = this.children.get(previousParent) as number[];
+      const childIndex = previousChildren.indexOf(child);
+      previousChildren.splice(childIndex, 1);
+      this.children.set(previousParent, previousChildren);
+    }
+
+    // add child to the new parent
     const children = this.children.get(parent) || [];
     // make sure we don't add the same child for the same parent twice
     if (children.includes(child)) {
@@ -164,18 +179,9 @@ export class Model {
     }
     children.push(child);
     this.children.set(parent, children);
+
     this.observers.forEach(observer => observer.onNodeChildAdded(parent, child));
     this.observers.forEach(observer => observer.onModelChanged());
-  }
-
-  removeChild(parent: number, child: number): void {
-    const children = this.children.get(parent) || [];
-    const index = children.indexOf(child);
-    if (index !== -1) {
-      children.splice(index, 1);
-    }
-    this.children.set(parent, children);
-    this.observers.forEach(observer => observer.onNodeChildRemoved(parent, child));
   }
 
   addConnection(from: number, to: number): void {
