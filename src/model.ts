@@ -38,7 +38,7 @@ export interface IModelObserver {
 export class Model {
   // Accessors
   isValidIndex(index: number): boolean {
-    return this.nodes.includes(index);
+    return this.nodes.includes(index) || index === this.getRoot();
   }
   
   getRoot(): number {
@@ -46,47 +46,76 @@ export class Model {
   }
 
   getName(index: number): string {
-    return this.names.get(index) || '';
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
+
+    return this.names.get(index) as string;
   }
 
   getRectangle(index: number, outer: number): Rectangle {
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
+    if (!this.isValidIndex(outer)) {
+      throw new Error('Invalid outer index');
+    }
+
     // get rectangle from the outer
     const rectangles = this.rectangles.get(outer);
     if (rectangles === undefined) {
-      throw new Error('Rectangles are undefined. index: ' + index + ', outer: ' + outer 
+      throw new Error('Rectangle is undefined in this context. index: ' + index + ', outer: ' + outer 
         + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     const rectangle = rectangles.get(index);
     if (rectangle === undefined) {
-      throw new Error('Rectangle is undefined. index: ' + index + ', outer: ' + outer
+      throw new Error('Rectangle is undefined in this context. index: ' + index + ', outer: ' + outer
         + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     return rectangle;
   }
 
   getChildren(index: number): number[] {
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
     // return copy of children array
     return this.children.get(index)?.slice() || [];
   }
 
   getOutgoingConnections(index: number): Connection[] {
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
+
     return this.connections.filter(connection => connection.from === index);
   }
 
   getIncomingConnections(index: number): Connection[] {
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
+
     return this.connections.filter(connection => connection.to === index);
   }
 
   // Utility functions
 
-  getParent(index: number): number | null {
+  getParent(index: number): number {
+    if (!this.isValidIndex(index)) {
+      throw new Error('Invalid index');
+    }
+    if (index === this.getRoot()) {
+      throw new Error('Root has no parent');
+    }
+
     // get parent of the node
     for (const [key, value] of this.children.entries()) {
       if (value.includes(index)) {
         return key;
       }
     }
-    return null;
+    return this.getRoot();
   }
 
   getConnections(index: number): Connection[] {
@@ -114,8 +143,6 @@ export class Model {
       index = this.indexGenerator++;
     }
     this.nodes.push(index);
-    // add to root children
-    this.addChild(0, index);
     this.observers.forEach(observer => observer.onNodeCreated(index));
     this.observers.forEach(observer => observer.onModelChanged());
     return index;
@@ -164,7 +191,7 @@ export class Model {
   addChild(parent: number, child: number): void {
     // remove child from the previous parent
     const previousParent = this.getParent(child);
-    if (previousParent !== null) {
+    if (previousParent !== this.getRoot()) {
       var previousChildren = this.children.get(previousParent) as number[];
       const childIndex = previousChildren.indexOf(child);
       previousChildren.splice(childIndex, 1);
@@ -180,6 +207,7 @@ export class Model {
     children.push(child);
     this.children.set(parent, children);
 
+    this.observers.forEach(observer => observer.onNodeChildRemoved(previousParent, child));
     this.observers.forEach(observer => observer.onNodeChildAdded(parent, child));
     this.observers.forEach(observer => observer.onModelChanged());
   }

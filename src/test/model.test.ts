@@ -142,6 +142,23 @@ describe('Getting a non-existing node rectangle should throw an error', () => {
 });
 
 //************************************************************************************************
+describe('Getting rectangle in undefined context should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Getting rectangle in undefined context should throw an error', () => {
+    const driveshaftNodes= model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    expect(() => model.getRectangle(driveshaftNode, model.getRoot())).toThrow();
+  });
+});
+
+//************************************************************************************************
 describe('Get driveshaft name', () => {
   let model: Model;
 
@@ -159,7 +176,7 @@ describe('Get driveshaft name', () => {
 });
 
 //************************************************************************************************
-describe('Non existing node name should be equal to an empty string', () => {
+describe('Getting invalid node name should throw an error', () => {
   let model: Model;
 
   beforeEach(() => {
@@ -167,8 +184,8 @@ describe('Non existing node name should be equal to an empty string', () => {
     createSampleGraph(model);
   });
 
-  test('Non existing node name should be equal to an empty string', () => {
-    expect(model.getName(123)).toEqual('');
+  test('Getting invalid node name should throw an error', () => {
+    expect(() => model.getName(123)).toThrow();
   });
 });
 
@@ -200,7 +217,7 @@ describe('Get engine children', () => {
 });
 
 //************************************************************************************************
-describe('Get children of a non-existing node should return an empty array', () => {
+describe('Get children of a non-existing node should throw an error', () => {
   let model: Model;
 
   beforeEach(() => {
@@ -208,9 +225,8 @@ describe('Get children of a non-existing node should return an empty array', () 
     createSampleGraph(model);
   });
 
-  test('Get children of a non-existing node should return an empty array', () => {
-    const children = model.getChildren(123);
-    expect(children.length).toEqual(0);
+  test('Get children of a non-existing node should throw an error', () => {
+    expect(() => model.getChildren(123)).toThrow();
   });
 });
 
@@ -233,7 +249,7 @@ describe('Get engine parent', () => {
 });
 
 //************************************************************************************************
-describe('Get parent of a non-existing node should return null', () => {
+describe('Get parent of a non-existing node should throw an error', () => {
   let model: Model;
 
   beforeEach(() => {
@@ -241,9 +257,21 @@ describe('Get parent of a non-existing node should return null', () => {
     createSampleGraph(model);
   });
 
-  test('Get parent of a non-existing node should return null', () => {
-    const parent = model.getParent(123);
-    expect(parent).toBeNull();
+  test('Get parent of a non-existing node should throw an error', () => {
+    expect(() => model.getParent(123)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Get parent of root should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+  });
+
+  test('Get parent of root should throw an error', () => {
+    expect(() => model.getParent(model.getRoot())).toThrow();
   });
 });
 
@@ -275,7 +303,7 @@ describe('Get outgoing connections for driveshaft node', () => {
 });
   
 //************************************************************************************************
-describe('Get outgoing connections for a non-existing node should return an empty array', () => {
+describe('Get outgoing connections for a non-existing node should throw an error', () => {
   let model: Model;
 
   beforeEach(() => {
@@ -283,9 +311,8 @@ describe('Get outgoing connections for a non-existing node should return an empt
     createSampleGraph(model);
   });
 
-  test('Get outgoing connections for a non-existing node should return an empty array', () => {
-    const connections = model.getOutgoingConnections(123);
-    expect(connections.length).toEqual(0);
+  test('Get outgoing connections for a non-existing node should throw an error', () => {
+    expect(() => model.getOutgoingConnections(123)).toThrow();
   });
 });
 
@@ -321,7 +348,7 @@ describe('Get incoming connections for driveshaft node', () => {
 });
 
 //************************************************************************************************
-describe('Get incoming connections for a non-existing node should return an empty array', () => {
+describe('Get incoming connections for a non-existing node should throw an error', () => {
   let model: Model;
 
   beforeEach(() => {
@@ -329,9 +356,8 @@ describe('Get incoming connections for a non-existing node should return an empt
     createSampleGraph(model);
   });
 
-  test('Get incoming connections for a non-existing node should return an empty array', () => {
-    const connections = model.getIncomingConnections(123);
-    expect(connections.length).toEqual(0);
+  test('Get incoming connections for a non-existing node should throw an error', () => {
+    expect(() => model.getIncomingConnections(123)).toThrow();
   });
 });
 
