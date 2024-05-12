@@ -37,6 +37,10 @@ export interface IModelObserver {
 
 export class Model {
   // Accessors
+  isValidIndex(index: number): boolean {
+    return this.nodes.includes(index);
+  }
+  
   getRoot(): number {
     return 0;
   }
@@ -247,7 +251,9 @@ export class Model {
       x = minX + (maxX - minX) / 2 - width / 2;
       y = maxY + 50;
     } else {
-      throw new Error('Outer connection node is not left, right, top or bottom');
+      // behave as if the outer connection node is on the left
+      x = minX - width - 50;
+      y = minY + (maxY - minY) / 2 - height / 2;
     }
 
     // set rectangle
@@ -269,11 +275,132 @@ export class Model {
 }
 
 export class ModelUtils {
-  static createNode(model: Model, name: string, rectangle: Rectangle, outer: number): number {
-    const node = model.createNode();
+  static createNode(model: Model, name: string, rectangle = new Rectangle(0, 0, 100, 50), outer: number = 0, index: number = -1): number {
+    const node = model.createNode(index);
     model.setName(node, name);
     model.setRectangle(node, rectangle, outer);
     model.addChild(outer, node);
     return node;
+  }
+
+  static exportToYaml(model: Model): string {
+    // Sample graph exported to YAML:
+    //- Car:
+    //  Rect: [0, 0, 150, 50]
+    //  Children:
+    //    - Driveshaft: 
+    //      Rect: [-200, -100, 150, 50]
+    //      Connections:
+    //        - Engine
+    //        - Engine/Crankshaft
+    //    - Engine:
+    //      Rect: [0, -100, 150, 50]
+    //      Children:
+    //        - Pistons:
+    //          Rect: [0, -100, 150, 50]
+    //        - Crankshaft:
+    //          Rect: [0, 0, 150, 50]
+    //          Connections:
+    //            - Pistons
+    //    - Wheels:
+    //      Rect: [-200, 0, 150, 50]
+    //      Connections:
+    //        - Driveshaft
+    //      Children:
+    //        - Wheel 1:
+    //          Rect: [-200, 0, 150, 50]
+    //          Connections:
+    //            - ../Driveshaft
+    //        - Wheel 2:
+    //          Rect: [0, 0, 150, 50]
+    //          Connections:
+    //            - ../Driveshaft
+    //    - Body:
+    //      Rect: [0, 0, 150, 50]
+    //      Children:
+    //        - Door 1:
+    //          Rect: [-200, 0, 150, 50]
+    //        - Door 2:
+    //          Rect: [0, 0, 150, 50]
+
+    var yaml = '';
+    const root = model.getRoot();
+    //ezport all children of root (we cannot export the root as it has no name nor rect)
+    model.getChildren(root).forEach(child => {
+      yaml += this.exportNodeToYaml(model, child, 0);
+    });
+    return yaml;
+  }
+
+  static exportNodeToYaml(model: Model, index: number, indent: number): string {
+    var yaml = '';
+    const name = model.getName(index);
+    const rectangle = model.getRectangle(index, model.getParent(index) as number);
+    const children = model.getChildren(index);
+    const connections = model.getOutgoingConnections(index);
+    const indentString = ' '.repeat(indent);
+    yaml += indentString + '- ' + name + ':\n';
+    yaml += indentString + '  Rect: [' + rectangle.x + ', ' + rectangle.y + ', ' + rectangle.width + ', ' + rectangle.height + ']\n';
+    if (connections.length > 0) {
+      yaml += indentString + '  Connections:\n';
+      connections.forEach(connection => {
+        const connectionName = ModelUtils.getConnectionPath(model, connection.from, connection.to);
+        yaml += indentString + '    - ' + connectionName + '\n';
+      });
+    }
+    if (children.length > 0) {
+      yaml += indentString + '  Children:\n';
+      children.forEach(child => {
+        yaml += this.exportNodeToYaml(model, child, indent + 4);
+      });
+    }
+    return yaml;
+  }
+
+  static getConnectionPath(model: Model, from: number, to: number): string {
+    // from Driveshaft to Crankshaft this function should return 'Engine/Crankshaft'
+    // from Wheel 1 to Driveshaft this function should return '../Driveshaft'
+    // from Crankshaft to Pistons this function should return 'Pistons'
+
+    // ensure from and to are valid nodes
+    if (!model.isValidIndex(from) || !model.isValidIndex(to)) {
+      throw new Error('Invalid node index');
+    }
+    
+    // get full paths to the nodes
+    const fromPath = this.getNodePath(model, from);
+    const toPath = this.getNodePath(model, to);
+    // find the common prefix
+    for (var i = 0; i < Math.min(fromPath.length, toPath.length); i++) {
+      if (fromPath[i] === toPath[i]) {
+      } else {
+        break;
+      }
+    }
+    // remove common prefix from both paths
+    fromPath.splice(0, i);
+    toPath.splice(0, i);
+    // if the toPath is longer or equal to the fromPath then we can use the toPath
+    if (toPath.length >= fromPath.length) {
+      return toPath.join('/');
+    }
+    // if the toPath is shorter than the fromPath then we can use the toPath after adding as many
+    // '../' as there are remaining elements in the fromPath (minus the last element)
+    return '../'.repeat(fromPath.length - 1) + toPath.join('/');
+  }
+
+  static getNodePath(model: Model, index: number): string[] {
+    // for Driveshaft this function should return ['Car', 'Driveshaft']
+    // for Crankshaft this function should return ['Car', 'Engine', 'Crankshaft']
+    // for Wheel 1 this function should return ['Car', 'Wheels', 'Wheel 1']
+    // for Pistons this function should return ['Car', 'Engine', 'Pistons']
+    const path: string[] = [];
+    var current = index;
+    while (current !== model.getRoot()) {
+      const name = model.getName(current);
+      path.unshift(name);
+      current = model.getParent(current) as number;
+    }
+    return path;
   }
 }

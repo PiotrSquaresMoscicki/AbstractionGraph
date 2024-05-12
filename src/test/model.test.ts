@@ -1,4 +1,4 @@
-import { Model } from '../model';
+import { Model, ModelUtils } from '../model';
 import { createSampleGraph } from '../create_sample_graph';
 
 //************************************************************************************************
@@ -371,5 +371,303 @@ describe('Get all driveshaft connections', () => {
       connection => model.getName(connection.to) === 'Driveshaft' && model.getName(connection.from) === 'Wheel 2'
     );
     expect(wheel2Connection).not.toBeNull();
+  });
+});
+
+//************************************************************************************************
+describe('Get all connections for a non-existing node should return an empty array', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Get all connections for a non-existing node should return an empty array', () => {
+    const connections = model.getConnections(123);
+    expect(connections.length).toEqual(0);
+  });
+});
+
+//************************************************************************************************
+describe('Create node with predefined index', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Create node with predefined index', () => {
+    // this is meant to be used for undo/redo purposes so first we need to delete a node
+    // delete driveshaft node
+    const driveshaftNodes = model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    model.destroyNode(driveshaftNode);
+    // now we can create a node with the same index
+    const newDriveshaftNode = model.createNode(driveshaftNode);
+    expect(newDriveshaftNode).toEqual(driveshaftNode);
+  });
+});
+
+describe('Create node with index that already exists should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Create node with index that already exists should throw an error', () => {
+    const driveshaftNodes = model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    expect(() => model.createNode(driveshaftNode)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Create node with index greater than the intex generator should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+  });
+
+  test('Create node with index greater than the intex generator should throw an error', () => {
+    expect(() => model.createNode(1)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Destroy driveshaft node', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Destroy driveshaft node', () => {
+    const driveshaftNodes = model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    model.destroyNode(driveshaftNode);
+    const driveshaftNodesAfter = model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodesAfter.length).toEqual(0);
+    // Engine, Wheels, Wheel 1 and Wheel 2 should hve no connections
+    const engine = model.getNodesWithName('Engine');
+    expect(engine.length).toEqual(1);
+    const wheels = model.getNodesWithName('Wheels');
+    expect(wheels.length).toEqual(1);
+    const wheel1 = model.getNodesWithName('Wheel 1');
+    expect(wheel1.length).toEqual(1);
+    const wheel2 = model.getNodesWithName('Wheel 2');
+    expect(wheel2.length).toEqual(1);
+    expect(model.getConnections(engine[0]).length).toEqual(0);
+    expect(model.getConnections(wheels[0]).length).toEqual(0);
+    expect(model.getConnections(wheel1[0]).length).toEqual(0);
+    expect(model.getConnections(wheel2[0]).length).toEqual(0);
+    // crankshaft should have only connection to the pistons
+    const crankshaft = model.getNodesWithName('Crankshaft');
+    expect(crankshaft.length).toEqual(1);
+    const crankshaftConnections = model.getConnections(crankshaft[0]);
+    expect(crankshaftConnections.length).toEqual(1);
+    expect(model.getName(crankshaftConnections[0].to)).toEqual('Pistons');
+  });
+});
+
+//************************************************************************************************
+describe('Relative connection path generation', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Driveshaft to Crankshaft connection path', () => {
+    const driveshaftNodes = model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    const crankshaftNodes = model.getNodesWithName('Crankshaft');
+    expect(crankshaftNodes.length).toEqual(1);
+    const crankshaftNode = crankshaftNodes[0];
+    const path = ModelUtils.getConnectionPath(model, driveshaftNode, crankshaftNode);
+    expect(path).toEqual('Engine/Crankshaft');
+  });
+
+  test('Crankshaft to Pistons connection path', () => {
+    const crankshaftNodes = model.getNodesWithName('Crankshaft');
+    expect(crankshaftNodes.length).toEqual(1);
+    const crankshaftNode = crankshaftNodes[0];
+    const pistonsNodes = model.getNodesWithName('Pistons');
+    expect(pistonsNodes.length).toEqual(1);
+    const pistonsNode = pistonsNodes[0];
+    const path = ModelUtils.getConnectionPath(model, crankshaftNode, pistonsNode);
+    expect(path).toEqual('Pistons');
+  });
+
+  test('Wheel 1 to Driveshaft connection path', () => {
+    const wheel1Nodes = model.getNodesWithName('Wheel 1');
+    expect(wheel1Nodes.length).toEqual(1);
+    const wheel1Node = wheel1Nodes[0];
+    const driveshaftNodes = model.getNodesWithName('Driveshaft');
+    expect(driveshaftNodes.length).toEqual(1);
+    const driveshaftNode = driveshaftNodes[0];
+    const path = ModelUtils.getConnectionPath(model, wheel1Node, driveshaftNode);
+    expect(path).toEqual('../Driveshaft');
+  });
+});
+
+//************************************************************************************************
+describe('Relative connection path generation with non-existing nodes should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Relative connection path generation with non-existing nodes should throw an error', () => {
+    expect(() => ModelUtils.getConnectionPath(model, 123, 456)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Export pistons node to yaml', () => {
+  let model: Model;
+  let expectedYaml: string;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+
+    expectedYaml = 
+`- Pistons:
+  Rect: [0, -100, 150, 50]
+`;
+  });
+
+  test('Export pistons node to yaml', () => {
+    const pistonsNodes = model.getNodesWithName('Pistons');
+    expect(pistonsNodes.length).toEqual(1);
+    const pistonsNode = pistonsNodes[0];
+    const yaml = ModelUtils.exportNodeToYaml(model, pistonsNode, 0);
+    expect(yaml).toEqual(expectedYaml);
+  });
+});
+
+//************************************************************************************************
+describe('Export engine node to yaml', () => {
+  let model: Model;
+  let expectedYaml: string;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+
+    expectedYaml =
+`- Engine:
+  Rect: [0, -100, 150, 50]
+  Children:
+    - Pistons:
+      Rect: [0, -100, 150, 50]
+    - Crankshaft:
+      Rect: [0, 0, 150, 50]
+      Connections:
+        - Pistons
+`;
+  });
+
+  test('Export engine node to yaml', () => {
+    const engineNodes = model.getNodesWithName('Engine');
+    expect(engineNodes.length).toEqual(1);
+    const engineNode = engineNodes[0];
+    const yaml = ModelUtils.exportNodeToYaml(model, engineNode, 0);
+    expect(yaml).toEqual(expectedYaml);
+  });
+});
+
+//************************************************************************************************
+describe('Export Wheel 1 node to yaml', () => {
+  let model: Model;
+  let expectedYaml: string;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+
+    expectedYaml =
+`- Wheel 1:
+  Rect: [-200, 0, 150, 50]
+  Connections:
+    - ../Driveshaft
+`;
+  });
+
+  test('Export Wheel 1 node to yaml', () => {
+    const wheel1Nodes = model.getNodesWithName('Wheel 1');
+    expect(wheel1Nodes.length).toEqual(1);
+    const wheel1Node = wheel1Nodes[0];
+    const yaml = ModelUtils.exportNodeToYaml(model, wheel1Node, 0);
+    expect(yaml).toEqual(expectedYaml);
+  });
+});
+
+//************************************************************************************************
+describe('Export to yaml', () => {
+  let model: Model;
+  let expectedYaml: string;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+
+    expectedYaml = 
+`- Car:
+  Rect: [0, 0, 150, 50]
+  Children:
+    - Driveshaft:
+      Rect: [-200, -100, 150, 50]
+      Connections:
+        - Engine
+        - Engine/Crankshaft
+    - Engine:
+      Rect: [0, -100, 150, 50]
+      Children:
+        - Pistons:
+          Rect: [0, -100, 150, 50]
+        - Crankshaft:
+          Rect: [0, 0, 150, 50]
+          Connections:
+            - Pistons
+    - Wheels:
+      Rect: [-200, 0, 150, 50]
+      Connections:
+        - Driveshaft
+      Children:
+        - Wheel 1:
+          Rect: [-200, 0, 150, 50]
+          Connections:
+            - ../Driveshaft
+        - Wheel 2:
+          Rect: [0, 0, 150, 50]
+          Connections:
+            - ../Driveshaft
+    - Body:
+      Rect: [0, 0, 150, 50]
+      Children:
+        - Door 1:
+          Rect: [-200, 0, 150, 50]
+        - Door 2:
+          Rect: [0, 0, 150, 50]
+`;
+  });
+
+  test('Export to yaml', () => {
+    const yaml = ModelUtils.exportToYaml(model);
+    expect(yaml).toEqual(expectedYaml);
   });
 });
