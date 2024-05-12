@@ -64,7 +64,7 @@ export class Model {
     // get rectangle from the outer
     const rectangles = this.rectangles.get(outer);
     if (rectangles === undefined) {
-      throw new Error('Rectangle is undefined in this context. index: ' + index + ', outer: ' + outer 
+      throw new Error('No rectangle is undefined in this context. index: ' + index + ', outer: ' + outer 
         + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     const rectangle = rectangles.get(index);

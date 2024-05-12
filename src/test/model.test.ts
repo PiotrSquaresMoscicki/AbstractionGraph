@@ -154,7 +154,9 @@ describe('Getting rectangle in undefined context should throw an error', () => {
     const driveshaftNodes= model.getNodesWithName('Driveshaft');
     expect(driveshaftNodes.length).toEqual(1);
     const driveshaftNode = driveshaftNodes[0];
-    expect(() => model.getRectangle(driveshaftNode, model.getRoot())).toThrow();
+    const wheel1Nodes = model.getNodesWithName('Wheel 1');
+    expect(wheel1Nodes.length).toEqual(1);
+    expect(() => model.getRectangle(driveshaftNode, wheel1Nodes[0])).toThrow();
   });
 });
 
