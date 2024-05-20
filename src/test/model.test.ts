@@ -1,4 +1,13 @@
-import { Model, ModelUtils } from '../model';
+import { 
+  RootYamlNode,
+  ChildrenYamlNode,
+  ConnectionsYamlNode,
+  Model, 
+  ModelUtils,
+  NodeYamlNode, 
+  Rectangle, 
+  RectangleYamlNode
+} from '../model';
 import { createSampleGraph } from '../create_sample_graph';
 
 //************************************************************************************************
@@ -742,5 +751,188 @@ describe('Add child on wheel 1 to engine', () => {
     // egine should have three children
     const engineChildren = model.getChildren(engineNode);
     expect(engineChildren.length).toEqual(3);
+  });
+});
+
+//************************************************************************************************
+describe('Get node from connection path', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Get crankshaft node from connection path', () => {
+    // get the car node
+    const carNodes = model.getNodesWithName('Car');
+    expect(carNodes.length).toEqual(1);
+    const carNode = carNodes[0];
+    // path to the crankshaft node
+    const path = 'Engine/Crankshaft';
+    const node = ModelUtils.getNodeFromConnectionPath(model, carNode, path);
+    expect(model.getName(node)).toEqual('Crankshaft');
+  });
+
+  test('GetDriveshaft node from connection path', () => {
+    // get wheels node
+    const wheelsNodes = model.getNodesWithName('Wheels');
+    expect(wheelsNodes.length).toEqual(1);
+    const wheelsNode = wheelsNodes[0];
+    // path to the driveshaft node
+    const path = '../Driveshaft';
+    const node = ModelUtils.getNodeFromConnectionPath(model, wheelsNode, path);
+    expect(model.getName(node)).toEqual('Driveshaft');
+  });
+
+  test('Incorrect path should throw an error', () => {
+    // get wheels node
+    const wheelsNodes = model.getNodesWithName('Wheels');
+    expect(wheelsNodes.length).toEqual(1);
+    const wheelsNode = wheelsNodes[0];
+    // incorrect path
+    const path = 'Engine/Crankshaft';
+    expect(() => ModelUtils.getNodeFromConnectionPath(model, wheelsNode, path)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Parse yaml line', () => {
+  test('Parse car node', () => {
+    const line = '- Car:';
+    const result = ModelUtils.parseYamlLine(line);
+    expect(result).toEqual({ indent: 0, name: '- Car', value: ''});
+  });
+
+  test('Parse engine node', () => {
+    const line = '  - Engine:';
+    const result = ModelUtils.parseYamlLine(line);
+    expect(result).toEqual({ indent: 2, name: '- Engine', value: ''});
+  });
+
+  test('Parse children node', () => {
+    const line = '    - Children:';
+    const result = ModelUtils.parseYamlLine(line);
+    expect(result).toEqual({ indent: 4, name: '- Children', value: ''});
+  });
+
+  test('Parse rect node', () => {
+    const line = '- Rect: [0, -100, 150, 50]';
+    const result = ModelUtils.parseYamlLine(line);
+    expect(result).toEqual({ indent: 0, name: '- Rect', value: '[0, -100, 150, 50]'});
+  });
+});
+
+//************************************************************************************************
+describe('Parse rectangle', () => {
+  test('Parse rectangle', () => {
+    const rect = '[0, -100, 150, 50]';
+    const result = ModelUtils.parseRectangle(rect);
+    expect(result).toEqual({ x: 0, y: -100, width: 150, height: 50 });
+  });
+});
+
+//************************************************************************************************
+describe('Create yaml node', () => {
+  test('Create node yaml node in root yaml node', () => {
+    const node = ModelUtils.createYamlNode(new RootYamlNode(), '- Car', '');
+    // expect node to eb of type NodeYamlNode
+    const asNodeYamlNode = node as NodeYamlNode;
+    expect(asNodeYamlNode.name).toEqual('Car');
+  });
+
+  test('Create node yaml node in children yaml node', () => {
+    const node = ModelUtils.createYamlNode(new ChildrenYamlNode(), '- Engine', '');
+    // expect node to eb of type NodeYamlNode
+    const asNodeYamlNode = node as NodeYamlNode;
+    expect(asNodeYamlNode.name).toEqual('Engine');
+  });
+
+  test('Create node yaml node in rect yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new RectangleYamlNode(new Rectangle(0, 0, 0, 0)), '- Engine', '')).toThrow();
+  });
+
+  test('Create node yaml node in node yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new NodeYamlNode(''), '- Engine', '')).toThrow();
+  });
+
+  test('Create rect yaml node in node yaml node', () => {
+    const node = ModelUtils.createYamlNode(new NodeYamlNode(''), 'Rect', '[0, -100, 150, 50]');
+    // expect node to eb of type RectYamlNode
+    const asRectYamlNode = node as RectangleYamlNode;
+    expect(asRectYamlNode.rectangle).toEqual(new Rectangle(0, -100, 150, 50));
+  });
+
+  test('Create rect yaml node in root yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new RootYamlNode(), 'Rect', '[0, -100, 150, 50]')).toThrow();
+  });
+
+  test('Create rect yaml node in children yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new ChildrenYamlNode(), 'Rect', '[0, -100, 150, 50]')).toThrow();
+  });
+
+  test('Create rect yaml node in rect yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new RectangleYamlNode(new Rectangle(0, 0, 0, 0)), 'Rect', '[0, -100, 150, 50]')).toThrow();
+  });
+
+  test('Create rect yaml node in connections yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new ConnectionsYamlNode(), 'Rect', '[0, -100, 150, 50]')).toThrow();
+  });
+
+  test('Create children yaml node in node yaml node', () => {
+    const node = ModelUtils.createYamlNode(new NodeYamlNode(''), 'Children', '');
+    // expect node to eb of type ChildrenYamlNode
+    expect(node).toBeInstanceOf(ChildrenYamlNode);
+  });
+
+  test('Create children yaml node in root yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new RootYamlNode(), 'Children', '')).toThrow();
+  });
+
+  test('Create children yaml node in rect yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new RectangleYamlNode(new Rectangle(0, 0, 0, 0)), 'Children', '')).toThrow();
+  });
+
+  test('Create children yaml node in children yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new ChildrenYamlNode(), 'Children', '')).toThrow();
+  });
+
+  test('Create children yaml node in connections yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new ConnectionsYamlNode(), 'Children', '')).toThrow();
+  });
+
+  test('Create connections yaml node in node yaml node', () => {
+    const node = ModelUtils.createYamlNode(new NodeYamlNode(''), 'Connections', '');
+    // expect node to eb of type ConnectionsYamlNode
+    expect(node).toBeInstanceOf(ConnectionsYamlNode);
+  });
+
+  test('Create connections yaml node in root yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new RootYamlNode(), 'Connections', '')).toThrow();
+  });
+
+  test('Create connections yaml node in rect yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new RectangleYamlNode(new Rectangle(0, 0, 0, 0)), 'Connections', '')).toThrow();
+  });
+
+  test('Create connections yaml node in children yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new ChildrenYamlNode(), 'Connections', '')).toThrow();
+  });
+
+  test('Create connections yaml node in connections yaml node should throw an error', () => {
+    expect(() => ModelUtils.createYamlNode(new ConnectionsYamlNode(), 'Connections', '')).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Import from yaml', () => {
+  test('Import car node', () => {
+    const yaml = 
+`- Car:
+  Rect: [0, 0, 150, 50]`;
+    const model = new Model(); 
+    ModelUtils.importFromYaml(model, yaml);
+    const carNodes = model.getNodesWithName('Car');
+    expect(carNodes.length).toEqual(1);
   });
 });

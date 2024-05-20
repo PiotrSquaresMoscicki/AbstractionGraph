@@ -427,6 +427,27 @@ export class ModelUtils {
     return '../'.repeat(fromPath.length - 1) + toPath.join('/');
   }
 
+  static getNodeFromConnectionPath(model: Model, outer: number, path: string): number {
+    // for 'Engine/Crankshaft' this function should return the index of Crankshaft
+    // for '../Driveshaft' this function should return the index of Driveshaft
+    // for 'Pistons' this function should return the index of Pistons
+    const pathParts = path.split('/');
+    var current = outer;
+    for (const part of pathParts) {
+      if (part === '..') {
+        current = model.getParent(current) as number;
+      } else {
+        const children = model.getChildren(current);
+        const child = children.find(child => model.getName(child) === part);
+        if (child === undefined) {
+          throw new Error('Node with name ' + part + ' not found in outer ' + model.getName(current));
+        }
+        current = child;
+      }
+    }
+    return current;
+  }
+
   static getNodePath(model: Model, index: number): string[] {
     // for Driveshaft this function should return ['Car', 'Driveshaft']
     // for Crankshaft this function should return ['Car', 'Engine', 'Crankshaft']
@@ -440,5 +461,203 @@ export class ModelUtils {
       current = model.getParent(current) as number;
     }
     return path;
+  }
+
+  static parseYamlLine(line: string): { indent: number, name: string, value: string } {
+    const parts = line.split(':');
+    const indent = line.search(/\S/);
+    const name = parts[0].trim();
+    const value = parts[1].trim();
+    return { indent: indent, name: name, value: value };
+  }
+
+  static parseRectangle(value: string): Rectangle {
+    const parts = value.substring(1, value.length - 1).split(',').map(part => parseInt(part));
+    return new Rectangle(parts[0], parts[1], parts[2], parts[3]);
+  }
+
+  static createYamlNode(parent: IYamlNode, name: string, value: string): IYamlNode {
+    // if parent is of type NodeYamlNode allow Rect, Children and Connection nodes
+    if (parent instanceof NodeYamlNode) {
+      if (name === 'Rect') {
+        return new RectangleYamlNode(this.parseRectangle(value));
+      } else if (name === 'Children') {
+        return new ChildrenYamlNode();
+      } else if (name === 'Connections') {
+        return new ConnectionsYamlNode();
+      } else {
+        throw new Error('Invalid node name ' + name + ' for parent ' + parent.name 
+          + ' expected names are Rect, Children or Connections');
+      }
+    }
+    // if parent is of type ChildrenYamlNode or RootYamlNode allow only NodeYamlNode nodes
+    else if (parent instanceof ChildrenYamlNode || parent instanceof RootYamlNode) {
+      // remove leading '- ' from the name
+      if (name.substring(0, 2) !== '- ') {
+        throw new Error('Invalid node name ' + name + ' for parent ' + parent);
+      }
+      return new NodeYamlNode(name.substring(2)); 
+    }
+    // if parent is of type ConnectionsYamlNode allow only ConnectionYamlNode nodes
+    else if (parent instanceof ConnectionsYamlNode) {
+      // remove leading '- ' from the name
+      if (name.substring(0, 2) !== '- ') {
+        throw new Error('Invalid node name ' + name + ' for parent ' + parent);
+      }
+      return new ConnectionYamlNode(name.substring(2));
+    }
+    else {
+      throw new Error('Invalid parent type ' + parent);
+    }
+  }
+  
+  static importFromYaml(model: Model, yaml: string): void {
+    var rootYamlNode = new RootYamlNode();
+    var yamlNodeStack: IYamlNode[] = [rootYamlNode];
+    
+    // parse yaml
+    var lineIndex = 0;
+    yaml.split('\n').forEach(line => {
+      try
+      {
+        const { indent, name, value } = this.parseYamlLine(line);
+        
+        // ensure indentations are valid
+        if (indent % 2 !== 0) {
+          throw new Error('Invalid indent');
+        }
+        
+        // ensure last node on the stack matches the indent level
+        const indentLevel = indent / 2;
+        while (yamlNodeStack.length - 1 > indentLevel) {
+          // to make it easier to manage ownership of the newly created node we first push it to the 
+          // stack and hndle its children and then after adding all children we pop it and add it to
+          // its parent
+          var poped = yamlNodeStack.pop() as IYamlNode;
+          yamlNodeStack[yamlNodeStack.length - 1].addChild(poped);
+        }
+
+        // create yaml node
+        var yamlNode: IYamlNode = this.createYamlNode(yamlNodeStack[yamlNodeStack.length - 1], name, value);
+
+        // push yaml node to the stack
+        yamlNodeStack.push(yamlNode);
+
+        // increase line index
+        lineIndex++;
+      }
+      catch (error)
+      {
+        throw new Error('Error parsing line ' + lineIndex + ': ' + error);
+      }
+    });
+
+    // empty the stack
+    while (yamlNodeStack.length > 1) {
+      var poped = yamlNodeStack.pop() as IYamlNode;
+      yamlNodeStack[yamlNodeStack.length - 1].addChild(poped);
+    }
+
+    // apply yaml to model
+    rootYamlNode.applyToModel(model, model.getRoot(), ApplyToModelMode.SpawnNodes);
+    rootYamlNode.applyToModel(model, model.getRoot(), ApplyToModelMode.CreateConnections);
+  }
+}
+
+// enumeration type for mode of the applyToModel function
+export enum ApplyToModelMode {
+  SpawnNodes,
+  CreateConnections
+}
+
+export interface IYamlNode {
+  applyToModel(_model: Model, _outer: number, _mode: ApplyToModelMode) : void
+  addChild(_child: IYamlNode): void
+}
+
+export class BaseYamlNode implements IYamlNode {
+  applyToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
+    this.applyChildrenToModel(model, outer, mode);
+  }
+  
+  addChild(child: IYamlNode): void {
+    this.children.push(child);
+  }
+
+  applyChildrenToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
+    this.children.forEach(child => child.applyToModel(model, outer, mode));
+  }
+
+  children: IYamlNode[] = [];
+}
+
+export class RootYamlNode extends BaseYamlNode {
+}
+
+export class NodeYamlNode extends BaseYamlNode {
+  constructor(name: string) {
+    super();
+    this.name = name;
+  }
+
+  applyToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
+    if (mode === ApplyToModelMode.SpawnNodes) {
+      // create node
+      this.node = model.createNode();
+      model.setName(this.node, this.name);
+      model.addChild(outer, this.node);
+    }
+    
+    // apply children
+    this.applyChildrenToModel(model, this.node, mode);
+  }
+
+  name: string;
+  node: number = -1;
+}
+
+export class ConnectionYamlNode extends BaseYamlNode {
+  constructor(to: string) {
+    super();
+    this.to = to;
+  }
+
+  applyToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
+    if (mode === ApplyToModelMode.CreateConnections) {
+      // find the index of the node with the name this.to
+      const toIndex = ModelUtils.getNodeFromConnectionPath(model, model.getParent(outer), this.to);
+      // create connection
+      model.addConnection(outer, toIndex);
+    }
+  }
+
+  to: string;
+}
+
+export class RectangleYamlNode extends BaseYamlNode {
+  constructor(rectangle: Rectangle) {
+    super();
+    this.rectangle = rectangle;
+  }
+
+  applyToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
+    if (mode === ApplyToModelMode.SpawnNodes) {
+      // set rectangle
+      model.setRectangle(outer, this.rectangle, outer);
+    }
+  }
+
+  rectangle: Rectangle;
+}
+
+export class ChildrenYamlNode extends BaseYamlNode {
+  applyToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
+    this.applyChildrenToModel(model, outer, mode);
+  }
+}
+
+export class ConnectionsYamlNode extends BaseYamlNode {
+  applyToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
+    this.applyChildrenToModel(model, outer, mode);
   }
 }
