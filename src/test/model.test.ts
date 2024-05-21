@@ -926,7 +926,7 @@ describe('Create yaml node', () => {
 
 //************************************************************************************************
 describe('Import from yaml', () => {
-  test('Import car node', () => {
+  test('Import car node with rect', () => {
     const yaml = 
 `- Car:
   Rect: [0, 0, 150, 50]`;
@@ -934,5 +934,75 @@ describe('Import from yaml', () => {
     ModelUtils.importFromYaml(model, yaml);
     const carNodes = model.getNodesWithName('Car');
     expect(carNodes.length).toEqual(1);
+    const carNode = carNodes[0];
+    const rect = model.getRectangle(carNode, model.getRoot());
+    expect(rect).toEqual(new Rectangle(0, 0, 150, 50));
+  });
+
+  test('Import car node with children', () => {
+    const yaml =
+`- Car:
+  Children:
+    - Engine:
+    - Wheels:
+    - Body:`;
+    const model = new Model();
+    ModelUtils.importFromYaml(model, yaml);
+    const carNodes = model.getNodesWithName('Car');
+    expect(carNodes.length).toEqual(1);
+    const carNode = carNodes[0];
+    const children = model.getChildren(carNode);
+    expect(children.length).toEqual(3);
+    expect(model.getName(children[0])).toEqual('Engine');
+    expect(model.getName(children[1])).toEqual('Wheels');
+    expect(model.getName(children[2])).toEqual('Body');
+  });
+
+  test('Import car node with children with connections', () => {
+    const yaml =
+`- Car:
+  Children:
+    - Engine:
+      Connections:
+        - Wheels
+        - Body
+    - Wheels:
+      Connections:
+        - Body
+    - Body:`
+    const model = new Model();
+    ModelUtils.importFromYaml(model, yaml);
+    const carNodes = model.getNodesWithName('Car');
+    expect(carNodes.length).toEqual(1);
+    const engineNodes = model.getNodesWithName('Engine');
+    expect(engineNodes.length).toEqual(1);
+    const engineNode = engineNodes[0];
+    const wheelsNodes = model.getNodesWithName('Wheels');
+    expect(wheelsNodes.length).toEqual(1);
+    const wheelsNode = wheelsNodes[0];
+    const bodyNodes = model.getNodesWithName('Body');
+    expect(bodyNodes.length).toEqual(1);
+    const engineConnections = model.getConnections(engineNode);
+    expect(engineConnections.length).toEqual(2);
+    // connections are not ordered
+    let wheelsConnection = engineConnections.find(
+      connection => model.getName(connection.to) === 'Wheels' && model.getName(connection.from) === 'Engine'
+    );
+    expect(wheelsConnection).not.toBeNull();
+    let bodyConnection = engineConnections.find(
+      connection => model.getName(connection.to) === 'Body' && model.getName(connection.from) === 'Engine'
+    );
+    expect(bodyConnection).not.toBeNull();
+    const wheelsConnections = model.getConnections(wheelsNode);
+    expect(wheelsConnections.length).toEqual(2);
+    // connections are not ordered
+    let bodyConnection2 = wheelsConnections.find(
+      connection => model.getName(connection.to) === 'Body' && model.getName(connection.from) === 'Wheels'
+    );
+    expect(bodyConnection2).not.toBeNull();
+    let engineConnection = wheelsConnections.find(
+      connection => model.getName(connection.to) === 'Wheels' && model.getName(connection.from) === 'Engine'
+    );
+    expect(engineConnection).not.toBeNull();
   });
 });

@@ -64,7 +64,7 @@ export class Model {
     // get rectangle from the outer
     const rectangles = this.rectangles.get(outer);
     if (rectangles === undefined) {
-      throw new Error('No rectangle is undefined in this context. index: ' + index + ', outer: ' + outer 
+      throw new Error('No rectangle is defined in this context. index: ' + index + ', outer: ' + outer 
         + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     const rectangle = rectangles.get(index);
@@ -440,7 +440,7 @@ export class ModelUtils {
         const children = model.getChildren(current);
         const child = children.find(child => model.getName(child) === part);
         if (child === undefined) {
-          throw new Error('Node with name ' + part + ' not found in outer ' + model.getName(current));
+          throw new YamlParserException('Node with name ' + part + ' not found in outer ' + model.getName(current));
         }
         current = child;
       }
@@ -467,8 +467,9 @@ export class ModelUtils {
     const parts = line.split(':');
     const indent = line.search(/\S/);
     const name = parts[0].trim();
-    const value = parts[1].trim();
-    return { indent: indent, name: name, value: value };
+    // if parts has only one element then the value is empty
+    const value = parts.length === 1 ? '' : parts[1].trim();
+    return { indent, name, value };
   }
 
   static parseRectangle(value: string): Rectangle {
@@ -486,7 +487,7 @@ export class ModelUtils {
       } else if (name === 'Connections') {
         return new ConnectionsYamlNode();
       } else {
-        throw new Error('Invalid node name ' + name + ' for parent ' + parent.name 
+        throw new YamlParserException('Invalid node name ' + name + ' for parent ' + parent.name 
           + ' expected names are Rect, Children or Connections');
       }
     }
@@ -494,7 +495,7 @@ export class ModelUtils {
     else if (parent instanceof ChildrenYamlNode || parent instanceof RootYamlNode) {
       // remove leading '- ' from the name
       if (name.substring(0, 2) !== '- ') {
-        throw new Error('Invalid node name ' + name + ' for parent ' + parent);
+        throw new YamlParserException('Invalid node name ' + name + ' for parent ' + parent);
       }
       return new NodeYamlNode(name.substring(2)); 
     }
@@ -502,12 +503,12 @@ export class ModelUtils {
     else if (parent instanceof ConnectionsYamlNode) {
       // remove leading '- ' from the name
       if (name.substring(0, 2) !== '- ') {
-        throw new Error('Invalid node name ' + name + ' for parent ' + parent);
+        throw new YamlParserException('Invalid node name ' + name + ' for parent ' + parent);
       }
       return new ConnectionYamlNode(name.substring(2));
     }
     else {
-      throw new Error('Invalid parent type ' + parent);
+      throw new YamlParserException('Invalid parent type ' + parent);
     }
   }
   
@@ -524,7 +525,7 @@ export class ModelUtils {
         
         // ensure indentations are valid
         if (indent % 2 !== 0) {
-          throw new Error('Invalid indent');
+          throw new YamlParserException('Invalid indent');
         }
         
         // ensure last node on the stack matches the indent level
@@ -546,9 +547,12 @@ export class ModelUtils {
         // increase line index
         lineIndex++;
       }
-      catch (error)
-      {
-        throw new Error('Error parsing line ' + lineIndex + ': ' + error);
+      catch (e) {
+        if (e instanceof YamlParserException) {
+          throw new YamlParserException('Error on line ' + lineIndex + ': ' + e.message);
+        } else {
+          throw e;
+        }
       }
     });
 
@@ -561,6 +565,13 @@ export class ModelUtils {
     // apply yaml to model
     rootYamlNode.applyToModel(model, model.getRoot(), ApplyToModelMode.SpawnNodes);
     rootYamlNode.applyToModel(model, model.getRoot(), ApplyToModelMode.CreateConnections);
+  }
+}
+
+export class YamlParserException extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'YamlParserException';
   }
 }
 
@@ -606,6 +617,7 @@ export class NodeYamlNode extends BaseYamlNode {
       this.node = model.createNode();
       model.setName(this.node, this.name);
       model.addChild(outer, this.node);
+      model.setRectangle(this.node, new Rectangle(0, 0, 100, 50), outer);
     }
     
     // apply children
@@ -643,7 +655,7 @@ export class RectangleYamlNode extends BaseYamlNode {
   applyToModel(model: Model, outer: number, mode: ApplyToModelMode): void {
     if (mode === ApplyToModelMode.SpawnNodes) {
       // set rectangle
-      model.setRectangle(outer, this.rectangle, outer);
+      model.setRectangle(outer, this.rectangle, model.getParent(outer) as number);
     }
   }
 
