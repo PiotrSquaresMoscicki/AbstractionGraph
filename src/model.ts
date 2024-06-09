@@ -522,6 +522,12 @@ export class ModelUtils {
       try
       {
         const { indent, name, value } = this.parseYamlLine(line);
+
+        // continue if line is empty (no name and no value)
+        if (name === '' && value === '') {
+          lineIndex++;
+          return;
+        }
         
         // ensure indentations are valid
         if (indent % 2 !== 0) {
