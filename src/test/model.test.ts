@@ -514,6 +514,7 @@ describe('Destroy driveshaft node', () => {
   });
 });
 
+//************************************************************************************************
 describe('Adding the same child for the second time should throw an error', () => {
   let model: Model;
 
@@ -533,6 +534,26 @@ describe('Adding the same child for the second time should throw an error', () =
     expect(model.getName(pistonsParent)).toEqual('Engine');
     const pistonsNode = pistonsNodes[0];
     expect(() => model.addChild(engineNode, pistonsNode)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Adding the same connection for the second time should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Adding the same connection for the second time should throw an error', () => {
+    const crankshaftNodes = model.getNodesWithName('Crankshaft');
+    expect(crankshaftNodes.length).toEqual(1);
+    const crankshaftNode = crankshaftNodes[0];
+    const pistonsNodes = model.getNodesWithName('Pistons');
+    expect(pistonsNodes.length).toEqual(1);
+    const pistonsNode = pistonsNodes[0];
+    expect(() => model.addConnection(crankshaftNode, pistonsNode)).toThrow();
   });
 });
 

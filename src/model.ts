@@ -223,9 +223,9 @@ export class Model {
   }
 
   addConnection(from: number, to: number): void {
-    // prevent duplicate connections
-    if (this.connections.some(connection => connection.from === from && connection.to === to)) {
-      return;
+    // adding the same connection for the second time should throw an error
+    if (this.connections.find(connection => connection.from === from && connection.to === to) !== undefined) {
+      throw new Error('Connection already exists. from: ' + this.getName(from) + ', to: ' + this.getName(to));
     }
 
     // if connection is made between two nodes that are in the same inner graph (have the same 
