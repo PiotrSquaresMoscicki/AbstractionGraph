@@ -195,6 +195,16 @@ export class Model {
   addChild(parent: number, child: number): void {
     // remove child from the previous parent
     const previousParent = this.getParent(child);
+
+    // throw if child is already in the children of the parent
+    if (this.getChildren(parent).includes(child)) {
+      const oldParentName = this.getName(previousParent);
+      const newParentName = this.getName(parent);
+      const childName = this.getName(child);
+      throw new Error('Child is already in the children of the parent. OldParent: ' + oldParentName
+        + ', NewParent: ' + newParentName + ', Child: ' + childName);
+    }
+
     if (previousParent !== this.getRoot()) {
       var previousChildren = this.children.get(previousParent) as number[];
       const childIndex = previousChildren.indexOf(child);
@@ -204,10 +214,6 @@ export class Model {
 
     // add child to the new parent
     const children = this.children.get(parent) || [];
-    // make sure we don't add the same child for the same parent twice
-    if (children.includes(child)) {
-      return;
-    }
     children.push(child);
     this.children.set(parent, children);
 

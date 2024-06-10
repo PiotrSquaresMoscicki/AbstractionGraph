@@ -514,6 +514,28 @@ describe('Destroy driveshaft node', () => {
   });
 });
 
+describe('Adding the same child for the second time should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Adding the same child for the second time should throw an error', () => {
+    const engineNodes = model.getNodesWithName('Engine');
+    expect(engineNodes.length).toEqual(1);
+    const engineNode = engineNodes[0];
+    const pistonsNodes = model.getNodesWithName('Pistons');
+    expect(pistonsNodes.length).toEqual(1);
+    // expect pistons parent to be an engine
+    const pistonsParent = model.getParent(pistonsNodes[0]) as number;
+    expect(model.getName(pistonsParent)).toEqual('Engine');
+    const pistonsNode = pistonsNodes[0];
+    expect(() => model.addChild(engineNode, pistonsNode)).toThrow();
+  });
+});
+
 //************************************************************************************************
 describe('Relative connection path generation', () => {
   let model: Model;
