@@ -558,6 +558,30 @@ describe('Adding the same connection for the second time should throw an error',
 });
 
 //************************************************************************************************
+describe('Remove cnnection between crankshaft and pistons', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Remove cnnection between crankshaft and pistons', () => {
+    const crankshaftNodes = model.getNodesWithName('Crankshaft');
+    expect(crankshaftNodes.length).toEqual(1);
+    const crankshaftNode = crankshaftNodes[0];
+    const pistonsNodes = model.getNodesWithName('Pistons');
+    expect(pistonsNodes.length).toEqual(1);
+    const pistonsNode = pistonsNodes[0];
+    expect(model.getConnections(crankshaftNode).length).toEqual(2);
+    expect(model.getConnections(pistonsNode).length).toEqual(1);
+    model.removeConnection(crankshaftNode, pistonsNode);
+    expect(model.getConnections(crankshaftNode).length).toEqual(1);
+    expect(model.getConnections(pistonsNode).length).toEqual(0);
+  });
+});
+
+//************************************************************************************************
 describe('Relative connection path generation', () => {
   let model: Model;
 
@@ -966,6 +990,8 @@ describe('Create yaml node', () => {
     expect(() => ModelUtils.createYamlNode(new ConnectionsYamlNode(), 'Connections', '')).toThrow();
   });
 });
+
+//************************************************************************************************
 
 //************************************************************************************************
 describe('Import from yaml', () => {
