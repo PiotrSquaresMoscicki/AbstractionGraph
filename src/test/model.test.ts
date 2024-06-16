@@ -8,7 +8,10 @@ import {
   Rectangle, 
   RectangleYamlNode
 } from '../model';
-import { createSampleGraph } from '../create_sample_graph';
+import { 
+  createSampleGraph,
+  createSampleGraphFromYaml
+} from '../create_sample_graph';
 
 //************************************************************************************************
 describe('Root node equals to 0', () => {
@@ -1119,6 +1122,21 @@ describe('Import from yaml', () => {
 
     ModelUtils.importFromYaml(model, originalYaml);
     const exportedYaml = ModelUtils.exportToYaml(model);
+    expect(exportedYaml).toEqual(originalYaml);
+  });
+});
+
+//************************************************************************************************
+describe('createSampleGraph and creatSampleGraphFromYaml should export to the same yaml', () => {
+  test('createSampleGraph and creatSampleGraphFromYaml should export to the same yaml', () => {
+    const model = new Model();
+    createSampleGraph(model);
+    const originalYaml = ModelUtils.exportToYaml(model);
+
+    const model2 = new Model();
+    createSampleGraphFromYaml(model2);
+    const exportedYaml = ModelUtils.exportToYaml(model2);
+
     expect(exportedYaml).toEqual(originalYaml);
   });
 });

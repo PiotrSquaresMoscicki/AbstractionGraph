@@ -41,3 +41,47 @@ export function createSampleGraph(model: Model) {
   model.addConnection(wheel1, driveshaft);
   model.addConnection(wheel2, driveshaft);
 }
+
+export function createSampleGraphFromYaml(model: Model) {
+  const yaml = 
+`- Car:
+  Rect: [0, 0, 150, 50]
+  Children:
+    - Driveshaft:
+      Rect: [-200, -100, 150, 50]
+      Connections:
+        - Engine
+        - Engine/Crankshaft
+    - Engine:
+      Rect: [0, -100, 150, 50]
+      Children:
+        - Pistons:
+          Rect: [0, -100, 150, 50]
+        - Crankshaft:
+          Rect: [0, 0, 150, 50]
+          Connections:
+            - Pistons
+    - Wheels:
+      Rect: [-200, 0, 150, 50]
+      Connections:
+        - Driveshaft
+      Children:
+        - Wheel 1:
+          Rect: [-200, 0, 150, 50]
+          Connections:
+            - ../Driveshaft
+        - Wheel 2:
+          Rect: [0, 0, 150, 50]
+          Connections:
+            - ../Driveshaft
+    - Body:
+      Rect: [0, 0, 150, 50]
+      Children:
+        - Door 1:
+          Rect: [-200, 0, 150, 50]
+        - Door 2:
+          Rect: [0, 0, 150, 50]
+`;
+
+  ModelUtils.importFromYaml(model, yaml);
+}
