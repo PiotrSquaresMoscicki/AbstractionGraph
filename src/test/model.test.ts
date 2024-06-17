@@ -290,6 +290,45 @@ describe('Get parent of root should throw an error', () => {
 });
 
 //************************************************************************************************
+describe('getNodeWithName tests', () => {
+  test('Get driveshaft node', () => {
+    const model = new Model();
+    createSampleGraph(model);
+    const driveshaftNode = model.getNodeWithName('Driveshaft');
+    expect(model.getName(driveshaftNode)).toEqual('Driveshaft');
+  });
+
+  test('Get node with non-existing name should throw an error', () => {
+    const model = new Model();
+    createSampleGraph(model);
+    expect(() => model.getNodeWithName('Non-existing node')).toThrow();
+  });
+
+  test('Get node with name that exists multiple times should throw an error', () => {
+    const model = new Model();
+    createSampleGraph(model);
+    ModelUtils.createNode(model, 'Engine', { x: 0, y: 0, width: 150, height: 50 }, model.getRoot());
+    expect(() => model.getNodeWithName('Engine')).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('getNodeWIthPath tests', () => {
+  test('Get driveshaft node', () => {
+    const model = new Model();
+    createSampleGraph(model);
+    const driveshaftNode = model.getNodeWithPath('Car/Driveshaft');
+    expect(model.getName(driveshaftNode)).toEqual('Driveshaft');
+  });
+
+  test('Get node with non-existing path should throw an error', () => {
+    const model = new Model();
+    createSampleGraph(model);
+    expect(() => model.getNodeWithPath('Non-existing path')).toThrow();
+  });
+});
+
+//************************************************************************************************
 describe('Get outgoing connections for driveshaft node', () => {
   let model: Model;
 
@@ -537,6 +576,23 @@ describe('Adding the same child for the second time should throw an error', () =
     expect(model.getName(pistonsParent)).toEqual('Engine');
     const pistonsNode = pistonsNodes[0];
     expect(() => model.addChild(engineNode, pistonsNode)).toThrow();
+  });
+});
+
+//************************************************************************************************
+describe('Adding child to the parrent that already has a child with the same name should throw an error', () => {
+  let model: Model;
+
+  beforeEach(() => {
+    model = new Model();
+    createSampleGraph(model);
+  });
+
+  test('Adding child to the parrent that already has a child with the same name should throw an error', () => {
+    const engineNodes = model.getNodesWithName('Engine');
+    expect(engineNodes.length).toEqual(1);
+    const engineNode = engineNodes[0];
+    expect(() => ModelUtils.createNode(model, 'Pistons', { x: 0, y: -100, width: 150, height: 50 }, engineNode)).toThrow();
   });
 });
 

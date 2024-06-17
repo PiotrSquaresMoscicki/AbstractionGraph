@@ -129,6 +129,24 @@ export class Model {
   getNodesWithName(name: string): number[] {
     return this.nodes.filter(node => this.getName(node) === name);
   }
+  
+  getNodeWithName(name: string): number {
+    // throw if there's more than one node with the same name
+    // throw if there's no node with the given name
+    const nodes = this.getNodesWithName(name);
+    if (nodes.length === 0) {
+      throw new Error('No node with name ' + name);
+    }
+    if (nodes.length > 1) {
+      throw new Error('More than one node with name ' + name);
+    }
+    return nodes[0];
+  }
+
+  getNodeWithPath(path: string): number {
+    // throw if there's no node with the given path
+    return ModelUtils.getNodeFromConnectionPath(this, this.getRoot(), path);
+  }
 
   // Mutators
   registerObserver(observer: IModelObserver): void {
@@ -205,6 +223,14 @@ export class Model {
         + ', NewParent: ' + newParentName + ', Child: ' + childName);
     }
 
+    // throw if with the same name there is already a child in the parent
+    const children = this.getChildren(parent);
+    const childName = this.getName(child);
+    if (children.find(child => this.getName(child) === childName) !== undefined) {
+      const parentName = this.getName(parent);
+      throw new Error('Child with the same name is already in the parent. Parent: ' + parentName + ', Child: ' + childName);
+    }
+
     if (previousParent !== this.getRoot()) {
       var previousChildren = this.children.get(previousParent) as number[];
       const childIndex = previousChildren.indexOf(child);
@@ -213,7 +239,6 @@ export class Model {
     }
 
     // add child to the new parent
-    const children = this.children.get(parent) || [];
     children.push(child);
     this.children.set(parent, children);
 

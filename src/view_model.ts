@@ -1,6 +1,7 @@
 import { Model, IModelObserver, Connection, Rectangle } from './model'
 
 export interface IViewModelObserver extends IModelObserver {
+  onViewStyleChanged(): void
   onDisplayedParentChanged(): void
   onViewportSizeChanged(): void
   onHoveredNodeChanged(): void
@@ -208,6 +209,11 @@ export class ViewModel implements IModelObserver {
   unregisterObserver(observer: IViewModelObserver): void {
     this.observers = this.observers.filter(item => item !== observer);
     this.model.unregisterObserver(observer);
+  }
+
+  setViewStyle(viewStyle: ViewStyle): void {
+    this.viewStyle = viewStyle;
+    this.observers.forEach(observer => observer.onModelChanged());
   }
 
   setViewportSize(size: { width: number, height: number }): void {
