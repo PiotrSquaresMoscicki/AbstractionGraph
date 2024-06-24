@@ -36,6 +36,10 @@ export interface IModelObserver {
 }
 
 export class Model {
+  constructor() {
+    this.names.set(this.getRoot(), 'Root');
+  }
+
   // Accessors
   isValidIndex(index: number): boolean {
     return this.nodes.includes(index) || index === this.getRoot();
@@ -65,12 +69,12 @@ export class Model {
     const rectangles = this.rectangles.get(outer);
     if (rectangles === undefined) {
       throw new Error('No rectangle is defined in this context. index: ' + index + ', outer: ' + outer 
-        + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
+        + ' indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     const rectangle = rectangles.get(index);
     if (rectangle === undefined) {
       throw new Error('Rectangle is undefined in this context. index: ' + index + ', outer: ' + outer
-        + 'indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
+        + ' indexName: ' + this.getName(index) + ', outerName: ' + this.getName(outer));
     }
     return rectangle;
   }

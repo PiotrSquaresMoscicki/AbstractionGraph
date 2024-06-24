@@ -14,7 +14,7 @@ onMouseDown(event: MouseEvent): void {
   if (!this.active && event.buttons === 2) {
   this.active = true;
   this.startingCursorPosition = { x: event.clientX, y: event.clientY };
-  this.startingViewportPosition = this.viewModel.getViewPortPosition();
+  this.startingViewportPosition = this.viewModel.getViewportPosition();
   }
 }
 

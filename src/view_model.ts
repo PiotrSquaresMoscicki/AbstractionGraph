@@ -70,7 +70,7 @@ export class ViewModel implements IModelObserver {
   getRectangleInViewport(index: number, outer: number = this.displayedParent): Rectangle {
     // calculate rectangle position and size based on viewport position and zoom
     const rectangle = this.model.getRectangle(index, outer);
-    const viewportPosition = this.getViewPortPosition(outer);
+    const viewportPosition = this.getViewportPosition(outer);
     const zoom = this.getZoom(outer);
     return new Rectangle(rectangle.x * zoom - viewportPosition.x, rectangle.y * zoom - viewportPosition.y, 
       rectangle.width * zoom, rectangle.height * zoom);
@@ -104,7 +104,7 @@ export class ViewModel implements IModelObserver {
     return this.gridSize * (this.zooms.get(outer) || 1);
   }
 
-  getViewPortPosition(outer: number = this.displayedParent): { x: number, y: number } {
+  getViewportPosition(outer: number = this.displayedParent): { x: number, y: number } {
     // if viewport position is not set create a bounding box around all nodes in the displayed parent
     // then center the viewport on the bounding box
     if (!this.viewportPositions.has(outer)) {
@@ -147,7 +147,7 @@ export class ViewModel implements IModelObserver {
   }
 
   getMousePositionInModel(event: MouseEvent, outer: number = this.displayedParent): { x: number, y: number } {
-    const viewportPosition = this.getViewPortPosition(outer);
+    const viewportPosition = this.getViewportPosition(outer);
     const zoom = this.getZoom(outer);
     return { x: (event.clientX + viewportPosition.x) / zoom, y: (event.clientY + viewportPosition.y) / zoom };
   }
@@ -224,7 +224,7 @@ export class ViewModel implements IModelObserver {
 
   setRectangleInViewport(index: number, rectangle: Rectangle, outer: number = this.displayedParent): void {
     // calculate rectangle position and size based on viewport position and zoom
-    const viewportPosition = this.getViewPortPosition(outer);
+    const viewportPosition = this.getViewportPosition(outer);
     const zoom = this.getZoom(outer);
     var modelRectangle = new Rectangle((rectangle.x + viewportPosition.x) / zoom, (rectangle.y + viewportPosition.y) / zoom, 
       rectangle.width / zoom, rectangle.height / zoom);

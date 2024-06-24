@@ -98,7 +98,7 @@ export class View implements IViewModelObserver, IViewContext, IViewControllerOb
   // Private methods
   private drawGrid(): void {
     // get view port position
-    const viewportPosition = this.viewModel.getViewPortPosition();
+    const viewportPosition = this.viewModel.getViewportPosition();
     // get grid size
     const gridSize = this.viewModel.getGridSize();
     // get canvas size

@@ -54,7 +54,7 @@ export class ViewportZoomController extends BaseController {
 
   performZoom(zoom: number, center: { x: number, y: number }): void {
     // zoom around the center
-    const viewportPosition = this.viewModel.getViewPortPosition();
+    const viewportPosition = this.viewModel.getViewportPosition();
     const oldZoom = this.viewModel.getZoom();
     const centerInModel = { x: (center.x + viewportPosition.x) / oldZoom, y: (center.y + viewportPosition.y) / oldZoom };
     const centerInModelAfterZoom = { x: (center.x + viewportPosition.x) / zoom, y: (center.y + viewportPosition.y) / zoom };
