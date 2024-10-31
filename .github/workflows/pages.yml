@@ -2,7 +2,7 @@ name: Deploy Abstraction Graph To Pages
 
 on:
   push:
-    branches: ['dev-ts']
+    branches: ['main']
   workflow_dispatch:
 
 # Sets the GITHUB_TOKEN permissions to allow deployment to GitHub Pages
