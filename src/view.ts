@@ -378,6 +378,7 @@ export class View implements IViewModelObserver, IViewContext, IViewControllerOb
   onNodeChildRemoved(_parent: number, _child: number): void {}
   onConnectionAdded(_from: number, _to: number): void {}
   onConnectionRemoved(_from: number, _to: number): void {}
+  onViewStyleChanged(): void {}
   onDisplayedParentChanged(): void {}
   onViewportSizeChanged(): void {}
   onHoveredNodeChanged(): void {}
